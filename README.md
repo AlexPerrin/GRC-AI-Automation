@@ -71,10 +71,21 @@ npm run dev
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `anthropic` | LLM provider (`anthropic` or `openai`) |
-| `LLM_MODEL` | `claude-sonnet-4-6` | Model ID passed to litellm |
-| `ANTHROPIC_API_KEY` | — | Required for Anthropic provider |
-| `OPENAI_API_KEY` | — | Required for OpenAI provider or `text-embedding-3-small` |
+| `LLM_PROVIDER` | `anthropic` | LLM provider: `anthropic`, `openai`, or `openrouter` |
+| `LLM_MODEL` | `claude-sonnet-4-6` | Model ID (see table below) |
+| `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` or `EMBEDDING_MODEL=text-embedding-3-small` |
+| `OPENROUTER_API_KEY` | — | Required when `LLM_PROVIDER=openrouter` |
+
+### LLM Provider / Model examples
+
+| `LLM_PROVIDER` | `LLM_MODEL` | litellm string | Notes |
+|---|---|---|---|
+| `anthropic` | `claude-sonnet-4-6` | `anthropic/claude-sonnet-4-6` | Direct Anthropic API |
+| `openai` | `gpt-4o` | `openai/gpt-4o` | Direct OpenAI API |
+| `openrouter` | `anthropic/claude-sonnet-4-6` | `openrouter/anthropic/claude-sonnet-4-6` | Via OpenRouter |
+| `openrouter` | `openai/gpt-4o` | `openrouter/openai/gpt-4o` | Via OpenRouter |
+| `openrouter` | `meta-llama/llama-3.1-70b-instruct` | `openrouter/meta-llama/llama-3.1-70b-instruct` | Via OpenRouter |
 | `DATABASE_URL` | `sqlite:///./vendor_onboarding.db` | SQLAlchemy database URL |
 | `CHROMA_PERSIST_DIR` | `./chroma_data` | ChromaDB persistence directory |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformers model (local) or `text-embedding-3-small` (OpenAI) |
