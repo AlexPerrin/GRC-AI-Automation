@@ -73,9 +73,7 @@ npm run dev
 |---|---|---|
 | `LLM_PROVIDER` | `anthropic` | LLM provider: `anthropic`, `openai`, or `openrouter` |
 | `LLM_MODEL` | `claude-sonnet-4-6` | Model ID (see table below) |
-| `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` or `EMBEDDING_MODEL=text-embedding-3-small` |
-| `OPENROUTER_API_KEY` | — | Required when `LLM_PROVIDER=openrouter` |
+| `LLM_PROVIDER_API_KEY` | — | API key for the selected provider |
 
 ### LLM Provider / Model examples
 

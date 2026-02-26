@@ -32,7 +32,7 @@ class LLMClient:
 
     def __init__(self):
         self.model = settings.llm_model_string
-        self._api_key = settings.llm_api_key
+        self._api_key = settings.LLM_PROVIDER_API_KEY
 
     async def complete(self, system: str, user: str) -> str:
         """Return a raw string completion from the configured model."""
