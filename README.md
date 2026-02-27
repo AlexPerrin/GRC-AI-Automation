@@ -1,98 +1,88 @@
 # GRC-AI-Automation
 
-AI-augmented vendor onboarding pipeline for Security Governance, Risk, and Compliance (GRC).
+AI-augmented vendor onboarding pipeline for Security Governance, Risk, and Compliance (GRC). Automates a four-stage due diligence workflow — Use Case, Legal/Regulatory, Security Risk, and Financial Risk — using RAG-powered LLM analysis with a human-in-the-loop approval flow and full audit trail.
 
-Automates the four-stage vendor due diligence workflow — Use Case Evaluation, Legal/Regulatory Review, Security Risk Evaluation, and Financial Risk Review — using RAG-powered LLM analysis, a human-in-the-loop approval workflow, and a full audit trail.
-
----
-
-## Architecture
-
-```
-INTAKE
-  → USE_CASE_REVIEW        (Stage 1 — human form)
-  → USE_CASE_APPROVED
-  → LEGAL_REVIEW           (Stage 2 — AI + RAG)
-  → LEGAL_APPROVED
-  → NDA_PENDING
-  → SECURITY_REVIEW        (Stage 3 — AI + RAG)
-  → SECURITY_APPROVED
-  → FINANCIAL_REVIEW       (Stage 4 — human form)
-  → FINANCIAL_APPROVED
-  → ONBOARDED
-  / REJECTED               (exit from any stage)
-```
-
-**Stack:** FastAPI · Gunicorn (UvicornWorker) · SQLAlchemy / SQLite · ChromaDB · sentence-transformers · litellm · React + TypeScript
+**Stack:** FastAPI · Gunicorn (UvicornWorker) · SQLAlchemy / SQLite · ChromaDB · sentence-transformers · litellm
 
 ---
 
 ## Quickstart
 
-### Option A — Docker Compose
-
 ```bash
 git clone <repo-url>
-cd vendor-onboarding
-cp .env.example .env        # add your ANTHROPIC_API_KEY
-docker compose up
+cd GRC-AI-Automation
+cp .env.example .env        # fill in LLM_PROVIDER_API_KEY
+docker compose up --build
 ```
 
-API available at `http://localhost:8000`
-Interactive docs at `http://localhost:8000/docs`
+| Service | URL |
+|---|---|
+| API | `http://localhost:8000` |
+| Swagger UI | `http://localhost:8000/docs` |
+| ChromaDB | `http://localhost:8001` |
 
-### Option B — Local (backend only)
+---
+
+## Testing
+
+Tests use an isolated in-memory SQLite database — no external services required.
 
 ```bash
-cd vendor-onboarding/backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+# Ensure the stack is running
+docker compose up -d
 
-cp ../.env.example ../.env  # add your ANTHROPIC_API_KEY
+# Run the full suite
+docker compose exec api python -m pytest tests/ -v
 
-# Run with Gunicorn (production-style)
-gunicorn -c gunicorn.conf.py main:app
-
-# Or single-process for development
-uvicorn main:app --reload
+# Single module
+docker compose exec api python -m pytest tests/test_api_vendors.py -v
 ```
 
-### Frontend (Day 6)
-
-```bash
-cd vendor-onboarding/frontend
-npm install
-npm run dev
-```
+| Module | Tests | Covers |
+|---|---|---|
+| `test_config.py` | 6 | `llm_model_string` for all providers, `chroma_use_server` toggle |
+| `test_models.py` | 11 | ORM creation, FK relationships, cascade deletes, enum completeness |
+| `test_schemas.py` | 15 | Pydantic validation — valid payloads, rejected values, required fields |
+| `test_api_vendors.py` | 16 | Vendor CRUD, pagination, 404s, stub endpoints, health check |
+| `test_llm_client.py` | 7 | JSON parsing, markdown fence stripping, invalid JSON error |
+| **Total** | **57** | |
 
 ---
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` and set `LLM_PROVIDER_API_KEY`. All other values have working defaults.
+
+### LLM
+
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `anthropic` | LLM provider: `anthropic`, `openai`, or `openrouter` |
-| `LLM_MODEL` | `claude-sonnet-4-6` | Model ID (see table below) |
+| `LLM_PROVIDER` | `anthropic` | Provider: `anthropic`, `openai`, or `openrouter` |
+| `LLM_MODEL` | `claude-sonnet-4-6` | Model ID passed to litellm |
 | `LLM_PROVIDER_API_KEY` | — | API key for the selected provider |
 
-### LLM Provider / Model examples
+| `LLM_PROVIDER` | `LLM_MODEL` | Notes |
+|---|---|---|
+| `anthropic` | `claude-sonnet-4-6` | Direct Anthropic API |
+| `openai` | `gpt-4o` | Direct OpenAI API |
+| `openrouter` | `anthropic/claude-sonnet-4-6` | Via OpenRouter |
+| `openrouter` | `meta-llama/llama-3.1-70b-instruct` | Via OpenRouter |
 
-| `LLM_PROVIDER` | `LLM_MODEL` | litellm string | Notes |
-|---|---|---|---|
-| `anthropic` | `claude-sonnet-4-6` | `anthropic/claude-sonnet-4-6` | Direct Anthropic API |
-| `openai` | `gpt-4o` | `openai/gpt-4o` | Direct OpenAI API |
-| `openrouter` | `anthropic/claude-sonnet-4-6` | `openrouter/anthropic/claude-sonnet-4-6` | Via OpenRouter |
-| `openrouter` | `openai/gpt-4o` | `openrouter/openai/gpt-4o` | Via OpenRouter |
-| `openrouter` | `meta-llama/llama-3.1-70b-instruct` | `openrouter/meta-llama/llama-3.1-70b-instruct` | Via OpenRouter |
-| `DATABASE_URL` | `sqlite:///./vendor_onboarding.db` | SQLAlchemy database URL |
-| `CHROMA_PERSIST_DIR` | `./chroma_data` | ChromaDB persistence directory |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-transformers model (local) or `text-embedding-3-small` (OpenAI) |
+### Database & Storage
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./vendor_onboarding.db` | Overridden to a named volume path in Docker |
+| `CHROMA_HOST` | _(empty)_ | Leave blank for local embedded mode; set to `chromadb` in Docker |
+| `CHROMA_PORT` | `8000` | ChromaDB server port (Docker only) |
+| `CHROMA_PERSIST_DIR` | `./chroma_data` | Local persistence path (embedded mode only) |
+| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Local sentence-transformers model |
 
 ---
 
 ## API Overview
 
-Full interactive documentation is available at `/docs` (Swagger UI) or `/redoc`.
+Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 
 ### Vendors
 
@@ -102,7 +92,7 @@ Full interactive documentation is available at `/docs` (Swagger UI) or `/redoc`.
 | `GET` | `/vendors/` | List all vendors |
 | `GET` | `/vendors/{id}` | Get vendor by ID |
 | `POST` | `/vendors/{id}/confirm-nda` | Confirm NDA — advances LEGAL_APPROVED → SECURITY_REVIEW |
-| `POST` | `/vendors/{id}/complete-onboarding` | Finalise onboarding (FINANCIAL_APPROVED → ONBOARDED) |
+| `POST` | `/vendors/{id}/complete-onboarding` | Finalise onboarding |
 | `POST` | `/vendors/{id}/reject` | Reject vendor from any stage |
 
 ### Documents
@@ -140,12 +130,13 @@ Full interactive documentation is available at `/docs` (Swagger UI) or `/redoc`.
 ## Project Structure
 
 ```
-vendor-onboarding/
+.
 ├── backend/
 │   ├── main.py                          # FastAPI app + lifespan handler
 │   ├── gunicorn.conf.py                 # Gunicorn configuration
 │   ├── Dockerfile
 │   ├── requirements.txt
+│   ├── tests/
 │   ├── api/routes/
 │   │   ├── vendors.py
 │   │   ├── documents.py
@@ -172,39 +163,11 @@ vendor-onboarding/
 │       │   ├── store.py                 # ChromaDB wrapper
 │       │   └── retriever.py             # query → context string
 │       ├── knowledge_base/
-│       │   ├── legal_kb.py              # regulatory requirement entries
-│       │   ├── security_kb.py           # security control entries
+│       │   ├── legal_kb.py
+│       │   ├── security_kb.py
 │       │   └── loader.py                # seeds KB into ChromaDB on startup
 │       ├── legal/analyzer.py            # Stage 2 AI module
 │       └── security/analyzer.py         # Stage 3 AI module
-├── frontend/                            # Vite + React + TypeScript (Day 6)
 ├── .env.example
 └── docker-compose.yml
 ```
-
----
-
-## Development Roadmap
-
-| Day | Focus | Status |
-|---|---|---|
-| 1 | Architecture, scaffolding, data models | ✅ Complete |
-| 2 | Document ingestion, LLM abstraction, RAG layer | Pending |
-| 3 | Stage 2: Legal / Regulatory AI module | Pending |
-| 4 | Stage 3: Security Risk AI module + NDA gate | Pending |
-| 5 | Workflow orchestration, human-form stages, audit log | Pending |
-| 6 | React frontend | Pending |
-| 7 | Mock data, testing, demo polish | Pending |
-
----
-
-## Demo Data (Day 7)
-
-```bash
-# Seed three pre-built vendor scenarios
-curl -X POST http://localhost:8000/dev/seed
-```
-
-- **Acme Analytics** — clean pass across all four stages
-- **DataFlow Inc.** — fails Stage 2 on GDPR Article 28 gap
-- **SecureVault Ltd.** — conditional pass (security + financial flags)

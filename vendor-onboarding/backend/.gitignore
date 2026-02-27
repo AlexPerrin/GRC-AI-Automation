@@ -1,8 +1,0 @@
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.db
-*.db-journal
-chroma_data/
-.env
