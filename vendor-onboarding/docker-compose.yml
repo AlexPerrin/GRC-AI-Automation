@@ -12,6 +12,13 @@ services:
       - chroma_data:/app/chroma_data
       - sqlite_data:/app/data
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 volumes:
   chroma_data:

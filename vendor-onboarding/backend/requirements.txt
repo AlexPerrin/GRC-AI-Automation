@@ -29,6 +29,6 @@ sentence-transformers==3.3.1
 chromadb==0.6.0
 
 # --- Dev ---
-httpx==0.28.1        # for FastAPI TestClient
+httpx>=0.23.0        # for FastAPI TestClient; upper bound managed by litellm
 pytest==8.3.4
 pytest-asyncio==0.25.0
