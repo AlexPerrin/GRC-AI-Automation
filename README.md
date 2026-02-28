@@ -9,7 +9,7 @@ AI-augmented vendor onboarding pipeline for Security Governance, Risk, and Compl
 ## Quickstart
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:AlexPerrin/GRC-AI-Automation.git
 cd GRC-AI-Automation
 cp .env.example .env        # fill in LLM_PROVIDER_API_KEY
 docker compose up --build
@@ -25,17 +25,16 @@ docker compose up --build
 
 ## Testing
 
-Tests use an isolated in-memory SQLite database — no external services required.
+Tests use an isolated in-memory SQLite database and mocked service boundaries — no external services (ChromaDB, LLM API) required.
 
 ```bash
-# Ensure the stack is running
-docker compose up -d
+cd backend
 
 # Run the full suite
-docker compose exec api python -m pytest tests/ -v
+.venv/bin/python -m pytest tests/ -v
 
 # Single module
-docker compose exec api python -m pytest tests/test_api_vendors.py -v
+.venv/bin/python -m pytest tests/test_api_documents.py -v
 ```
 
 | Module | Tests | Covers |
@@ -45,7 +44,14 @@ docker compose exec api python -m pytest tests/test_api_vendors.py -v
 | `test_schemas.py` | 15 | Pydantic validation — valid payloads, rejected values, required fields |
 | `test_api_vendors.py` | 16 | Vendor CRUD, pagination, 404s, stub endpoints, health check |
 | `test_llm_client.py` | 7 | JSON parsing, markdown fence stripping, invalid JSON error |
-| **Total** | **57** | |
+| `test_extractor.py` | 6 | PDF/DOCX/TXT extraction, None page text, non-UTF-8 bytes |
+| `test_chunker.py` | 7 | Long text splitting, metadata preservation, chunk_index, empty input |
+| `test_embedder.py` | 6 | Shape, lazy loading, model reuse, normalize flag |
+| `test_vector_store.py` | 7 | Upsert IDs/docs, query returns docs, collection_exists true/false |
+| `test_retriever.py` | 5 | Separator joining, n forwarding, single/empty chunk edge cases |
+| `test_kb_loader.py` | 5 | Skip when exists, seed when absent, partial seed, entry_id in metadata |
+| `test_api_documents.py` | 10 | Upload 201, raw_text persistence, chroma_collection_id, 404s, list, get |
+| **Total** | **103** | |
 
 ---
 

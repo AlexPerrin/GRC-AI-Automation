@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Ensure data directories exist for named-volume mountpoints.
+RUN mkdir -p /app/data /app/chroma_data
+
 EXPOSE 8000
 
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "main:app"]

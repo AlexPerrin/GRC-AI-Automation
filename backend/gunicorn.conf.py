@@ -14,3 +14,9 @@ loglevel = "info"
 
 # Graceful restart on SIGHUP
 preload_app = False
+
+
+def on_starting(server):
+    """Run DB migrations once in the master process before workers fork."""
+    from core.database import Base, engine
+    Base.metadata.create_all(bind=engine)

@@ -27,5 +27,14 @@ class DocumentChunker:
         self.overlap = overlap
 
     def chunk(self, text: str, metadata: dict) -> List[Chunk]:
-        """Split text into chunks with metadata. Implemented Day 2."""
-        raise NotImplementedError
+        """Split text into overlapping chunks with metadata."""
+        from langchain_text_splitters import RecursiveCharacterTextSplitter
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.overlap,
+        )
+        texts = splitter.split_text(text)
+        return [
+            Chunk(text=t, metadata={**metadata, "chunk_index": i})
+            for i, t in enumerate(texts)
+        ]
