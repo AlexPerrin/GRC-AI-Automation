@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.models import Vendor, VendorStatus
 from schemas.vendor import VendorCreate, VendorList, VendorRead
+from services.workflow import WorkflowService
 
 router = APIRouter()
 
@@ -39,8 +40,7 @@ def get_vendor(vendor_id: int, db: Session = Depends(get_db)):
 def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     """
     Confirm NDA execution for a vendor.
-    Advances status from LEGAL_APPROVED → SECURITY_REVIEW.
-    Implemented fully in Day 4.
+    Advances status from LEGAL_APPROVED -> SECURITY_REVIEW.
     """
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
@@ -50,8 +50,7 @@ def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
             status_code=400,
             detail=f"NDA confirmation requires status LEGAL_APPROVED, current: {vendor.status}",
         )
-    # Full implementation in Day 4 (workflow service)
-    raise HTTPException(status_code=501, detail="Not implemented — coming Day 4")
+    return WorkflowService(db).confirm_nda(vendor_id)
 
 
 @router.post("/{vendor_id}/complete-onboarding", response_model=VendorRead)
