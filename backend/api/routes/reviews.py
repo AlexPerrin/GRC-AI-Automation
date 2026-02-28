@@ -47,7 +47,13 @@ async def trigger_ai_review(review_id: int, doc_id: int, db: Session = Depends(g
     if review.stage == DocumentStage.LEGAL:
         return await WorkflowService(db).trigger_legal_review(review_id, doc_id)
 
-    raise HTTPException(status_code=501, detail="Not implemented — coming Day 4")
+    if review.stage == DocumentStage.SECURITY:
+        try:
+            return await WorkflowService(db).trigger_security_review(review_id, doc_id)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
+
+    raise HTTPException(status_code=501, detail="Not implemented — coming Day 5")
 
 
 @router.post("/reviews/{review_id}/submit-form", response_model=ReviewRead)

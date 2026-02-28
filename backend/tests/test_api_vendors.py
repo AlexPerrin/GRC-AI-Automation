@@ -106,6 +106,17 @@ class TestVendorNdaAndStubEndpoints:
         resp = client.post("/vendors/99999/confirm-nda")
         assert resp.status_code == 404
 
+    def test_confirm_nda_success_advances_to_security_review(self, client, db_session):
+        from core.models import Vendor, VendorStatus
+        v = Vendor(name="NDA Success Vendor", status=VendorStatus.LEGAL_APPROVED)
+        db_session.add(v)
+        db_session.commit()
+        db_session.refresh(v)
+
+        resp = client.post(f"/vendors/{v.id}/confirm-nda")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "SECURITY_REVIEW"
+
     def test_complete_onboarding_not_implemented(self, client):
         vendor = client.post("/vendors/", json={"name": "Onboard Vendor"}).json()
         resp = client.post(f"/vendors/{vendor['id']}/complete-onboarding")
