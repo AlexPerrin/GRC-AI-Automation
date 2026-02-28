@@ -38,9 +38,6 @@ if env_path.exists():
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-_chroma_dir = Path(__file__).parent / "chroma_demo"
-_chroma_dir.mkdir(exist_ok=True)
-os.environ["CHROMA_PERSIST_DIR"] = str(_chroma_dir)
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 import logging

@@ -30,11 +30,6 @@ if env_path.exists():
             k, _, v = line.partition("=")
             os.environ.setdefault(k.strip(), v.strip())
 
-# Use a writable Chroma directory (the default may be owned by root in dev)
-_chroma_dir = Path(__file__).parent / "chroma_demo"
-_chroma_dir.mkdir(exist_ok=True)
-os.environ["CHROMA_PERSIST_DIR"] = str(_chroma_dir)
-
 # Suppress ChromaDB's broken telemetry client (posthog signature mismatch)
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 import logging
