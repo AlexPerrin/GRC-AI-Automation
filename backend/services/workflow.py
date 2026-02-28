@@ -1,11 +1,21 @@
 """
 WorkflowService — orchestrates all four stage transitions and the audit log.
-Stub for Day 1; fully implemented in Day 5.
+Stage 2 (trigger_legal_review) implemented in Day 3.
+All other stages implemented in Day 5.
 """
+import logging
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from core.models import AuditLog, Vendor, VendorStatus
+from core.models import AuditLog, Review, ReviewStatus, Vendor, VendorStatus
 from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
+from services.legal.analyzer import LegalAnalyzer
+from services.llm.client import LLMClient
+from services.rag.retriever import Retriever
+from services.rag.store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowService:
@@ -43,9 +53,72 @@ class WorkflowService:
     # Stage 2 — Legal / Regulatory Review (AI)
     # ------------------------------------------------------------------
 
-    def trigger_legal_review(self, vendor_id: int, doc_id: int):
-        """Kick off RAG-powered legal analysis. Implemented Day 3."""
-        raise NotImplementedError
+    async def trigger_legal_review(self, review_id: int, doc_id: int) -> Review:
+        """Kick off RAG-powered legal analysis and persist the result."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+
+        review.status = ReviewStatus.IN_PROGRESS
+        db.commit()
+
+        vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
+        if vendor and vendor.status != VendorStatus.LEGAL_REVIEW:
+            vendor.status = VendorStatus.LEGAL_REVIEW
+            db.commit()
+
+        analyzer = LegalAnalyzer(
+            llm=LLMClient(),
+            retriever=Retriever(store=VectorStore()),
+        )
+
+        try:
+            result = await analyzer.analyze(review.vendor_id, doc_id)
+            review.ai_output = result.to_dict()
+            review.status = ReviewStatus.COMPLETE
+            review.completed_at = datetime.utcnow()
+            db.commit()
+
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="LEGAL_REVIEW_COMPLETE",
+                actor="system",
+                payload={
+                    "review_id": review_id,
+                    "doc_id": doc_id,
+                    "overall_risk": result.overall_risk,
+                    "recommendation": result.recommendation,
+                },
+            )
+            db.commit()
+
+        except Exception as exc:
+            logger.error(
+                "Legal review failed for review_id=%s doc_id=%s: %s",
+                review_id,
+                doc_id,
+                exc,
+            )
+            review.status = ReviewStatus.ERROR
+            review.completed_at = datetime.utcnow()
+            db.commit()
+
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="LEGAL_REVIEW_ERROR",
+                actor="system",
+                payload={
+                    "review_id": review_id,
+                    "doc_id": doc_id,
+                    "error": str(exc),
+                },
+            )
+            db.commit()
+
+        db.refresh(review)
+        return review
 
     def submit_legal_decision(self, review_id: int, action: str, rationale: str):
         """Record human decision on Stage 2 output. Implemented Day 5."""

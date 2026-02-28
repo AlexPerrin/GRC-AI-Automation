@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import Review, Vendor
-from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
+from core.models import DocumentStage, Review, ReviewType, Vendor
 from schemas.review import ReviewRead
+from services.workflow import WorkflowService
 
 router = APIRouter()
 
@@ -28,16 +28,26 @@ def get_review(review_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/reviews/{review_id}/trigger", response_model=ReviewRead)
-def trigger_ai_review(review_id: int, doc_id: int, db: Session = Depends(get_db)):
+async def trigger_ai_review(review_id: int, doc_id: int, db: Session = Depends(get_db)):
     """
     Trigger AI analysis for a review (Stages 2 and 3).
     Requires a document ID to analyse.
-    Implemented in Days 3 and 4.
+    Stage 2 (LEGAL) implemented in Day 3; Stage 3 (SECURITY) in Day 4.
     """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
-    raise HTTPException(status_code=501, detail="Not implemented — coming Days 3/4")
+
+    if review.review_type != ReviewType.AI_ANALYSIS:
+        raise HTTPException(
+            status_code=400,
+            detail="This review is not an AI analysis review",
+        )
+
+    if review.stage == DocumentStage.LEGAL:
+        return await WorkflowService(db).trigger_legal_review(review_id, doc_id)
+
+    raise HTTPException(status_code=501, detail="Not implemented — coming Day 4")
 
 
 @router.post("/reviews/{review_id}/submit-form", response_model=ReviewRead)
