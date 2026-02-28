@@ -7,10 +7,17 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # Route SQLite into the sqlite_data named volume (not the host bind-mount).
+      - DATABASE_URL=sqlite:////app/data/vendor_onboarding.db
+      # Point ChromaDB client at the chromadb service.
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
     volumes:
       - ./backend:/app
-      - chroma_data:/app/chroma_data
       - sqlite_data:/app/data
+    depends_on:
+      - chromadb
     restart: unless-stopped
     deploy:
       resources:
@@ -19,6 +26,17 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  chromadb:
+    image: chromadb/chroma:0.6.0
+    ports:
+      - "8001:8000"   # expose 8001 on host for direct inspection / debugging
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+      - ALLOW_RESET=TRUE
+    restart: unless-stopped
 
 volumes:
   chroma_data:

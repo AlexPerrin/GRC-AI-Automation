@@ -1,6 +1,10 @@
 # Environment
 .env
 
+# Working notes
+PROBLEM.md
+SOLUTION.md
+
 # Python
 __pycache__/
 *.pyc

@@ -15,5 +15,18 @@ class DocumentExtractor:
     """
 
     def extract(self, file: IO[bytes], filename: str) -> str:
-        """Extract text from file. Implemented Day 2."""
-        raise NotImplementedError
+        """Extract text from file."""
+        name = (filename or "").lower()
+        if name.endswith(".pdf"):
+            import pdfplumber
+            pages = []
+            with pdfplumber.open(file) as pdf:
+                for page in pdf.pages:
+                    pages.append(page.extract_text() or "")
+            return "\n".join(pages)
+        if name.endswith(".docx"):
+            import docx
+            doc = docx.Document(file)
+            return "\n".join(p.text for p in doc.paragraphs)
+        # .txt or any other format
+        return file.read().decode("utf-8", errors="replace")

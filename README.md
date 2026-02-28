@@ -9,7 +9,7 @@ AI-augmented vendor onboarding pipeline for Security Governance, Risk, and Compl
 ## Quickstart
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:AlexPerrin/GRC-AI-Automation.git
 cd GRC-AI-Automation
 cp .env.example .env        # fill in LLM_PROVIDER_API_KEY
 docker compose up --build

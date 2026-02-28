@@ -19,5 +19,8 @@ class Embedder:
         self._model = None  # lazy-loaded in Day 2
 
     def embed(self, texts: List[str]) -> List[List[float]]:
-        """Return embedding vectors for a list of texts. Implemented Day 2."""
-        raise NotImplementedError
+        """Return normalized embedding vectors for a list of texts."""
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            self._model = SentenceTransformer(self.model_name)
+        return self._model.encode(texts, normalize_embeddings=True).tolist()

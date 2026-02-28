@@ -20,4 +20,5 @@ class Retriever:
         newline-delimited string with chunk separators.
         Implemented Day 2.
         """
-        raise NotImplementedError
+        chunks = self.store.query(collection, query, n)
+        return "\n---\n".join(chunks)

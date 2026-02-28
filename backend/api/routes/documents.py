@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.models import Document, DocumentStage, Vendor
 from schemas.document import DocumentRead
+from services.document.chunker import DocumentChunker
+from services.document.extractor import DocumentExtractor
+from services.rag.store import VectorStore
 
 router = APIRouter()
 
@@ -28,14 +31,23 @@ def upload_document(
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
-    # Day 2: extractor and chunker will process file.file here
+    raw_text = DocumentExtractor().extract(file.file, file.filename or "")
     document = Document(
         vendor_id=vendor_id,
         stage=stage,
         doc_type=doc_type,
         filename=file.filename or "unknown",
+        raw_text=raw_text,
     )
     db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    chunks = DocumentChunker().chunk(raw_text, {"vendor_id": vendor_id, "stage": stage, "doc_id": document.id})
+    collection = f"vendor_{vendor_id}_{stage.value}_{document.id}"
+    VectorStore().upsert_chunks(collection, chunks)
+
+    document.chroma_collection_id = collection
     db.commit()
     db.refresh(document)
     return document

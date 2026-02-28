@@ -12,8 +12,18 @@ class Settings(BaseSettings):
 
     LLM_PROVIDER_API_KEY: str = ""
 
+    # ChromaDB — used only in local dev (embedded mode).
+    # In Docker, CHROMA_HOST/PORT override these and HttpClient is used instead.
     CHROMA_PERSIST_DIR: str = "./chroma_data"
+    CHROMA_HOST: str = ""       # set to "chromadb" in docker-compose
+    CHROMA_PORT: int = 8000
+
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+
+    @property
+    def chroma_use_server(self) -> bool:
+        """True when a remote ChromaDB server is configured."""
+        return bool(self.CHROMA_HOST)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

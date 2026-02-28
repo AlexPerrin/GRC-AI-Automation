@@ -3,15 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from api.routes import decisions, documents, reviews, vendors
-from core.database import Base, engine
 from services.knowledge_base.loader import KnowledgeBaseLoader
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create all SQLite tables on startup (idempotent)
-    Base.metadata.create_all(bind=engine)
-    # Seed knowledge base collections into ChromaDB (no-op after first run)
+    # Seed knowledge base collections into ChromaDB (no-op after first run).
+    # DB tables are created once in gunicorn's on_starting hook (gunicorn.conf.py)
+    # to avoid a race condition when multiple workers start simultaneously.
     await KnowledgeBaseLoader().seed_if_empty()
     yield
 
