@@ -1,4 +1,17 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-api}
+      BACKEND_PORT: ${BACKEND_PORT:-8000}
+    depends_on:
+      - api
+    restart: unless-stopped
+
   api:
     build:
       context: ./backend
@@ -8,9 +21,7 @@ services:
     env_file:
       - .env
     environment:
-      # Route SQLite into the sqlite_data named volume (not the host bind-mount).
       - DATABASE_URL=sqlite:////app/data/vendor_onboarding.db
-      # Point ChromaDB client at the chromadb service.
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
     volumes:
@@ -30,7 +41,7 @@ services:
   chromadb:
     image: chromadb/chroma:0.6.0
     ports:
-      - "8001:8000"   # expose 8001 on host for direct inspection / debugging
+      - "8001:8000"
     volumes:
       - chroma_data:/chroma/chroma
     environment:
