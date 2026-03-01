@@ -36,6 +36,19 @@ def get_vendor(vendor_id: int, db: Session = Depends(get_db)):
     return vendor
 
 
+@router.post("/{vendor_id}/start-intake", response_model=VendorRead)
+def start_intake(vendor_id: int, db: Session = Depends(get_db)):
+    """Open Stage 1 Use Case review for a vendor in INTAKE status."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    try:
+        vendor, _review = WorkflowService(db).create_vendor_and_intake(vendor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return vendor
+
+
 @router.post("/{vendor_id}/confirm-nda", response_model=VendorRead)
 def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     """
@@ -53,25 +66,38 @@ def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     return WorkflowService(db).confirm_nda(vendor_id)
 
 
-@router.post("/{vendor_id}/complete-onboarding", response_model=VendorRead)
-def complete_onboarding(vendor_id: int, db: Session = Depends(get_db)):
-    """
-    Finalise vendor onboarding after all four stages are approved.
-    Implemented fully in Day 5.
-    """
+@router.post("/{vendor_id}/start-financial-review", response_model=VendorRead)
+def start_financial_review(vendor_id: int, db: Session = Depends(get_db)):
+    """Open Stage 4 Financial review for a vendor in SECURITY_APPROVED status."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    raise HTTPException(status_code=501, detail="Not implemented — coming Day 5")
+    try:
+        vendor, _review = WorkflowService(db).start_financial_review(vendor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return vendor
+
+
+@router.post("/{vendor_id}/complete-onboarding", response_model=VendorRead)
+def complete_onboarding(vendor_id: int, db: Session = Depends(get_db)):
+    """Finalise vendor onboarding after all four stages are approved."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    try:
+        return WorkflowService(db).complete_onboarding(vendor_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.post("/{vendor_id}/reject", response_model=VendorRead)
 def reject_vendor(vendor_id: int, rationale: str, db: Session = Depends(get_db)):
-    """
-    Reject a vendor at any stage.
-    Implemented fully in Day 5.
-    """
+    """Reject a vendor at any stage."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    raise HTTPException(status_code=501, detail="Not implemented — coming Day 5")
+    try:
+        return WorkflowService(db).reject_vendor(vendor_id, stage="MANUAL", rationale=rationale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
