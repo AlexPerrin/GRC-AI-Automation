@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.models import DocumentStage, Review, ReviewType, Vendor
+from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
 from schemas.review import ReviewRead
 from services.workflow import WorkflowService
 
@@ -59,14 +61,31 @@ async def trigger_ai_review(review_id: int, doc_id: int, db: Session = Depends(g
 @router.post("/reviews/{review_id}/submit-form", response_model=ReviewRead)
 def submit_review_form(
     review_id: int,
+    body: dict = Body(...),
     db: Session = Depends(get_db),
 ):
     """
     Submit a human form for Stage 1 (UseCaseFormInput) or Stage 4 (FinancialRiskFormInput).
     The request body must match the schema for the review's stage.
-    Fully wired in Day 5.
     """
     review = db.query(Review).filter(Review.id == review_id).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
-    raise HTTPException(status_code=501, detail="Not implemented — coming Day 5")
+
+    svc = WorkflowService(db)
+    try:
+        if review.stage == DocumentStage.USE_CASE:
+            form = UseCaseFormInput(**body)
+            return svc.submit_use_case_form(review_id, form)
+        elif review.stage == DocumentStage.FINANCIAL:
+            form = FinancialRiskFormInput(**body)
+            return svc.submit_financial_form(review_id, form)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="This review stage does not accept form submissions",
+            )
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

@@ -117,15 +117,22 @@ class TestVendorNdaAndStubEndpoints:
         assert resp.status_code == 200
         assert resp.json()["status"] == "SECURITY_REVIEW"
 
-    def test_complete_onboarding_not_implemented(self, client):
-        vendor = client.post("/vendors/", json={"name": "Onboard Vendor"}).json()
-        resp = client.post(f"/vendors/{vendor['id']}/complete-onboarding")
-        assert resp.status_code == 501
+    def test_complete_onboarding_advances_to_onboarded(self, client, db_session):
+        from core.models import Vendor, VendorStatus
+        v = Vendor(name="Onboard Vendor", status=VendorStatus.FINANCIAL_APPROVED)
+        db_session.add(v)
+        db_session.commit()
+        db_session.refresh(v)
 
-    def test_reject_vendor_not_implemented(self, client):
+        resp = client.post(f"/vendors/{v.id}/complete-onboarding")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ONBOARDED"
+
+    def test_reject_vendor_sets_rejected_status(self, client):
         vendor = client.post("/vendors/", json={"name": "Reject Vendor"}).json()
         resp = client.post(
             f"/vendors/{vendor['id']}/reject",
             params={"rationale": "Not a fit"},
         )
-        assert resp.status_code == 501
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "REJECTED"

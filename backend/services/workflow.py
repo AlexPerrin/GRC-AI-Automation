@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from core.models import AuditLog, Review, ReviewStatus, Vendor, VendorStatus
+from core.models import AuditLog, DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
 from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
 from services.legal.analyzer import LegalAnalyzer
 from services.llm.client import LLMClient
@@ -43,13 +43,80 @@ class WorkflowService:
     # Stage 1 — Use Case Evaluation (human form)
     # ------------------------------------------------------------------
 
-    def create_vendor_and_intake(self, data) -> Vendor:
-        """Create vendor record and open Stage 1 review. Implemented Day 5."""
-        raise NotImplementedError
+    def create_vendor_and_intake(self, vendor_id: int) -> tuple:
+        """Open Stage 1 review for an existing vendor in INTAKE status."""
+        db = self.db
 
-    def submit_use_case_form(self, review_id: int, form: UseCaseFormInput):
-        """Validate and store Stage 1 form; advance workflow on PROCEED. Implemented Day 5."""
-        raise NotImplementedError
+        vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+        if not vendor:
+            raise ValueError(f"Vendor {vendor_id} not found")
+        if vendor.status != VendorStatus.INTAKE:
+            raise ValueError(
+                f"Vendor must be in INTAKE status, current: {vendor.status}"
+            )
+
+        review = Review(
+            vendor_id=vendor_id,
+            stage=DocumentStage.USE_CASE,
+            review_type=ReviewType.HUMAN_FORM,
+            status=ReviewStatus.PENDING,
+        )
+        db.add(review)
+        db.commit()
+        db.refresh(review)
+
+        vendor.status = VendorStatus.USE_CASE_REVIEW
+        db.commit()
+
+        self._log(
+            vendor_id=vendor_id,
+            event_type="INTAKE_STARTED",
+            actor="system",
+            payload={"vendor_id": vendor_id, "review_id": review.id},
+        )
+        db.commit()
+
+        db.refresh(vendor)
+        return (vendor, review)
+
+    def submit_use_case_form(self, review_id: int, form: UseCaseFormInput) -> Review:
+        """Validate and store Stage 1 form; advance workflow on PROCEED."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+
+        review.form_input = form.model_dump()
+        review.status = ReviewStatus.COMPLETE
+        review.completed_at = datetime.utcnow()
+        db.commit()
+
+        vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
+        if form.recommendation == "PROCEED":
+            vendor.status = VendorStatus.USE_CASE_APPROVED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="USE_CASE_APPROVED",
+                actor=form.reviewer_name,
+                payload={"review_id": review_id},
+            )
+        else:
+            vendor.status = VendorStatus.REJECTED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="VENDOR_REJECTED",
+                actor=form.reviewer_name,
+                payload={
+                    "review_id": review_id,
+                    "stage": "USE_CASE",
+                    "rationale": form.notes,
+                },
+            )
+        db.commit()
+
+        db.refresh(review)
+        return review
 
     # ------------------------------------------------------------------
     # Stage 2 — Legal / Regulatory Review (AI)
@@ -122,9 +189,53 @@ class WorkflowService:
         db.refresh(review)
         return review
 
-    def submit_legal_decision(self, review_id: int, action: str, rationale: str):
-        """Record human decision on Stage 2 output. Implemented Day 5."""
-        raise NotImplementedError
+    def submit_legal_decision(
+        self,
+        review_id: int,
+        action: str,
+        rationale: str,
+        conditions: list | None = None,
+        actor: str = "system",
+    ) -> Vendor:
+        """Record human decision on Stage 2 output; advance workflow state."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+        if review.status != ReviewStatus.COMPLETE:
+            raise ValueError("Review must be COMPLETE before a decision can be recorded")
+
+        vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
+        if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
+            vendor.status = VendorStatus.LEGAL_APPROVED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="LEGAL_DECISION_APPROVED",
+                actor=actor,
+                payload={
+                    "review_id": review_id,
+                    "action": action,
+                    "conditions": conditions or [],
+                },
+            )
+        else:
+            vendor.status = VendorStatus.REJECTED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="VENDOR_REJECTED",
+                actor=actor,
+                payload={
+                    "review_id": review_id,
+                    "stage": "LEGAL",
+                    "action": action,
+                    "rationale": rationale,
+                },
+            )
+        db.commit()
+
+        db.refresh(vendor)
+        return vendor
 
     # ------------------------------------------------------------------
     # NDA Gate
@@ -236,26 +347,178 @@ class WorkflowService:
         db.refresh(review)
         return review
 
-    def submit_security_decision(self, review_id: int, action: str, rationale: str):
-        """Record human decision on Stage 3 output. Implemented Day 5."""
-        raise NotImplementedError
+    def submit_security_decision(
+        self,
+        review_id: int,
+        action: str,
+        rationale: str,
+        conditions: list | None = None,
+        actor: str = "system",
+    ) -> Vendor:
+        """Record human decision on Stage 3 output; advance workflow state."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+        if review.status != ReviewStatus.COMPLETE:
+            raise ValueError("Review must be COMPLETE before a decision can be recorded")
+
+        vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
+        if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
+            vendor.status = VendorStatus.SECURITY_APPROVED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="SECURITY_DECISION_APPROVED",
+                actor=actor,
+                payload={
+                    "review_id": review_id,
+                    "action": action,
+                    "conditions": conditions or [],
+                },
+            )
+        else:
+            vendor.status = VendorStatus.REJECTED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="VENDOR_REJECTED",
+                actor=actor,
+                payload={
+                    "review_id": review_id,
+                    "stage": "SECURITY",
+                    "action": action,
+                    "rationale": rationale,
+                },
+            )
+        db.commit()
+
+        db.refresh(vendor)
+        return vendor
 
     # ------------------------------------------------------------------
     # Stage 4 — Financial Risk Evaluation (human form)
     # ------------------------------------------------------------------
 
-    def submit_financial_form(self, review_id: int, form: FinancialRiskFormInput):
-        """Validate and store Stage 4 form; advance workflow on ACCEPTABLE. Implemented Day 5."""
-        raise NotImplementedError
+    def start_financial_review(self, vendor_id: int) -> tuple:
+        """Open Stage 4 review for a vendor in SECURITY_APPROVED status."""
+        db = self.db
+
+        vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+        if not vendor:
+            raise ValueError(f"Vendor {vendor_id} not found")
+        if vendor.status != VendorStatus.SECURITY_APPROVED:
+            raise ValueError(
+                f"Vendor must be in SECURITY_APPROVED status, current: {vendor.status}"
+            )
+
+        review = Review(
+            vendor_id=vendor_id,
+            stage=DocumentStage.FINANCIAL,
+            review_type=ReviewType.HUMAN_FORM,
+            status=ReviewStatus.PENDING,
+        )
+        db.add(review)
+        db.commit()
+        db.refresh(review)
+
+        vendor.status = VendorStatus.FINANCIAL_REVIEW
+        db.commit()
+
+        self._log(
+            vendor_id=vendor_id,
+            event_type="FINANCIAL_REVIEW_STARTED",
+            actor="system",
+            payload={"vendor_id": vendor_id, "review_id": review.id},
+        )
+        db.commit()
+
+        db.refresh(vendor)
+        return (vendor, review)
+
+    def submit_financial_form(self, review_id: int, form: FinancialRiskFormInput) -> Review:
+        """Validate and store Stage 4 form; advance workflow on ACCEPTABLE."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+
+        review.form_input = form.model_dump()
+        review.status = ReviewStatus.COMPLETE
+        review.completed_at = datetime.utcnow()
+        db.commit()
+
+        vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
+        if form.recommendation in ("ACCEPTABLE", "ACCEPTABLE_WITH_CONDITIONS"):
+            vendor.status = VendorStatus.FINANCIAL_APPROVED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="FINANCIAL_APPROVED",
+                actor=form.reviewer_name,
+                payload={
+                    "review_id": review_id,
+                    "conditions": form.conditions or [],
+                },
+            )
+        else:
+            vendor.status = VendorStatus.REJECTED
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="VENDOR_REJECTED",
+                actor=form.reviewer_name,
+                payload={
+                    "review_id": review_id,
+                    "stage": "FINANCIAL",
+                    "rationale": form.notes,
+                },
+            )
+        db.commit()
+
+        db.refresh(review)
+        return review
 
     # ------------------------------------------------------------------
     # Final disposition
     # ------------------------------------------------------------------
 
     def complete_onboarding(self, vendor_id: int) -> Vendor:
-        """Set vendor status to ONBOARDED after all stages approved. Implemented Day 5."""
-        raise NotImplementedError
+        """Set vendor status to ONBOARDED after all stages approved."""
+        db = self.db
+
+        vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+        if not vendor:
+            raise ValueError(f"Vendor {vendor_id} not found")
+        if vendor.status != VendorStatus.FINANCIAL_APPROVED:
+            raise ValueError(
+                f"Vendor must be in FINANCIAL_APPROVED status, current: {vendor.status}"
+            )
+
+        vendor.status = VendorStatus.ONBOARDED
+        self._log(
+            vendor_id=vendor_id,
+            event_type="ONBOARDING_COMPLETE",
+            actor="system",
+            payload={"vendor_id": vendor_id},
+        )
+        db.commit()
+        db.refresh(vendor)
+        return vendor
 
     def reject_vendor(self, vendor_id: int, stage: str, rationale: str) -> Vendor:
-        """Reject vendor from any stage. Implemented Day 5."""
-        raise NotImplementedError
+        """Reject vendor from any stage."""
+        db = self.db
+
+        vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+        if not vendor:
+            raise ValueError(f"Vendor {vendor_id} not found")
+
+        vendor.status = VendorStatus.REJECTED
+        self._log(
+            vendor_id=vendor_id,
+            event_type="VENDOR_REJECTED",
+            actor="system",
+            payload={"vendor_id": vendor_id, "stage": stage, "rationale": rationale},
+        )
+        db.commit()
+        db.refresh(vendor)
+        return vendor
