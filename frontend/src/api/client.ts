@@ -27,8 +27,9 @@ function json(method: string, body: unknown): RequestInit {
   }
 }
 
-// Vendors
-export const listVendors = () => request<Vendor[]>('/vendors/')
+// Vendors — backend wraps list in { vendors: [], total: N }
+export const listVendors = () =>
+  request<{ vendors: Vendor[]; total: number }>('/vendors/').then((r) => r.vendors)
 export const getVendor = (id: number | string) => request<Vendor>(`/vendors/${id}`)
 export const createVendor = (data: { name: string; website?: string; description?: string }) =>
   request<Vendor>('/vendors/', json('POST', data))
