@@ -22,16 +22,6 @@ docker compose up --build
 | Swagger UI | `http://localhost:8000/docs` |
 | ChromaDB | `http://localhost:8001` |
 
-### Frontend dev server (without Docker)
-
-```bash
-cd frontend
-npm install
-npm run dev     # http://localhost:5173 — proxies /api to localhost:8000
-```
-
----
-
 ## Testing
 
 Tests use an isolated in-memory SQLite database and mocked service boundaries — no external services (ChromaDB, LLM API) required.
@@ -70,8 +60,6 @@ cd backend
 | `test_workflow_decisions.py` | 26 | Legal/security/financial decisions, onboarding, reject, state transitions |
 | **Total** | **215** | |
 
----
-
 ## Environment Variables
 
 Copy `.env.example` to `.env` and set `LLM_PROVIDER_API_KEY`. All other values have working defaults.
@@ -108,8 +96,6 @@ Copy `.env.example` to `.env` and set `LLM_PROVIDER_API_KEY`. All other values h
 | `FRONTEND_PORT` | `5173` | Host port mapped to the frontend container |
 | `BACKEND_HOST` | `api` | Hostname the nginx proxy forwards `/api` requests to |
 | `BACKEND_PORT` | `8000` | Backend port used by the nginx proxy |
-
----
 
 ## API Overview
 
@@ -163,8 +149,6 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | Health check |
-
----
 
 ## Project Structure
 

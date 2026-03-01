@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import Vendor, VendorStatus
+from core.models import DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
+from schemas.review import ReviewRead
 from schemas.vendor import VendorCreate, VendorList, VendorRead
 from services.workflow import WorkflowService
 
@@ -89,6 +90,56 @@ def complete_onboarding(vendor_id: int, db: Session = Depends(get_db)):
         return WorkflowService(db).complete_onboarding(vendor_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/{vendor_id}/start-legal-review", response_model=ReviewRead)
+def start_legal_review(vendor_id: int, db: Session = Depends(get_db)):
+    """Return existing LEGAL review or create one if it doesn't exist yet."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.LEGAL)
+        .first()
+    )
+    if existing:
+        return existing
+    review = Review(
+        vendor_id=vendor_id,
+        stage=DocumentStage.LEGAL,
+        review_type=ReviewType.AI_ANALYSIS,
+        status=ReviewStatus.PENDING,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+@router.post("/{vendor_id}/start-security-review", response_model=ReviewRead)
+def start_security_review(vendor_id: int, db: Session = Depends(get_db)):
+    """Return existing SECURITY review or create one if it doesn't exist yet."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.SECURITY)
+        .first()
+    )
+    if existing:
+        return existing
+    review = Review(
+        vendor_id=vendor_id,
+        stage=DocumentStage.SECURITY,
+        review_type=ReviewType.AI_ANALYSIS,
+        status=ReviewStatus.PENDING,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
 
 
 @router.post("/{vendor_id}/reject", response_model=VendorRead)

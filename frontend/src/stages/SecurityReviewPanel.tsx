@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { confirmNda, triggerReview } from '../api/client'
+import { confirmNda, startSecurityReview, triggerReview } from '../api/client'
 import DecisionPanel from '../components/DecisionPanel'
 import DocumentUpload from '../components/DocumentUpload'
 import Badge from '../components/ui/Badge'
@@ -78,6 +78,16 @@ export default function SecurityReviewPanel({ review, documents, vendor }: Secur
     },
   })
 
+  const analyzeMutation = useMutation({
+    mutationFn: async (docId: number) => {
+      const created = await startSecurityReview(vendor.id)
+      return triggerReview(created.id, docId)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['reviews', String(vendor.id)] })
+    },
+  })
+
   // NDA gate
   if (vendor.status === 'LEGAL_APPROVED') {
     return (
@@ -122,7 +132,28 @@ export default function SecurityReviewPanel({ review, documents, vendor }: Secur
       <Card>
         <h3 className="text-base font-semibold text-gray-900 mb-4">AI Security Analysis</h3>
 
-        {!review && <p className="text-sm text-gray-500">No review available yet.</p>}
+        {!review && (
+          <div className="space-y-3">
+            {documents.length === 0 ? (
+              <p className="text-sm text-gray-500">Upload a security document above to begin analysis.</p>
+            ) : (
+              <>
+                {analyzeMutation.isError && (
+                  <p className="text-sm text-red-600">{(analyzeMutation.error as Error).message}</p>
+                )}
+                <Button
+                  onClick={() => {
+                    const doc = documents[0]
+                    if (doc) analyzeMutation.mutate(doc.id)
+                  }}
+                  disabled={analyzeMutation.isPending}
+                >
+                  {analyzeMutation.isPending ? 'Starting…' : 'Analyze'}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
 
         {review?.status === 'PENDING' && (
           <Button

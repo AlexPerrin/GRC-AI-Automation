@@ -16,6 +16,19 @@ const statusColors: Record<VendorStatus, string> = {
 }
 
 const variantColors: Record<string, string> = {
+  // Legal analyzer lowercase values
+  compliant: 'bg-green-100 text-green-800',
+  approve: 'bg-green-100 text-green-800',
+  low: 'bg-green-100 text-green-800',
+  partial: 'bg-yellow-100 text-yellow-800',
+  approve_with_conditions: 'bg-yellow-100 text-yellow-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  non_compliant: 'bg-red-100 text-red-800',
+  reject: 'bg-red-100 text-red-800',
+  high: 'bg-orange-100 text-orange-800',
+  critical: 'bg-red-100 text-red-800',
+  not_applicable: 'bg-gray-100 text-gray-500',
+  // Uppercase variants
   MET: 'bg-green-100 text-green-800',
   APPROVE: 'bg-green-100 text-green-800',
   ONBOARDED: 'bg-blue-600 text-white',

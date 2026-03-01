@@ -37,6 +37,10 @@ export const startIntake = (id: number) =>
   request<Vendor>(`/vendors/${id}/start-intake`, { method: 'POST' })
 export const confirmNda = (id: number) =>
   request<Vendor>(`/vendors/${id}/confirm-nda`, { method: 'POST' })
+export const startLegalReview = (id: number) =>
+  request<Review>(`/vendors/${id}/start-legal-review`, { method: 'POST' })
+export const startSecurityReview = (id: number) =>
+  request<Review>(`/vendors/${id}/start-security-review`, { method: 'POST' })
 export const startFinancialReview = (id: number) =>
   request<Vendor>(`/vendors/${id}/start-financial-review`, { method: 'POST' })
 export const completeOnboarding = (id: number) =>

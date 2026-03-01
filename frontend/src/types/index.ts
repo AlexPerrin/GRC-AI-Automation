@@ -67,18 +67,21 @@ export interface AuditLog {
   timestamp: string
 }
 
-// AI output shapes
-export interface LegalFinding {
-  requirement: string
-  status: 'MET' | 'NOT_MET' | 'PARTIAL'
+// AI output shapes — Legal
+export interface LegalRegulationFinding {
+  regulation: string
+  article: string
+  status: 'compliant' | 'partial' | 'non_compliant' | 'not_applicable'
+  finding: string
   evidence: string
-  gap_description: string | null
 }
 
 export interface LegalAnalysisResult {
-  findings: LegalFinding[]
-  overall_compliance: string
+  regulation_findings: LegalRegulationFinding[]
+  overall_risk: 'low' | 'medium' | 'high' | 'critical'
+  recommendation: 'approve' | 'approve_with_conditions' | 'reject'
   summary: string
+  conditions: string[]
 }
 
 export interface SecurityDomain {

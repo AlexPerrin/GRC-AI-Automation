@@ -95,6 +95,14 @@ class WorkflowService:
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
         if form.recommendation == "PROCEED":
             vendor.status = VendorStatus.USE_CASE_APPROVED
+            # Auto-create the LEGAL review so the AI analysis stage is ready
+            legal_review = Review(
+                vendor_id=review.vendor_id,
+                stage=DocumentStage.LEGAL,
+                review_type=ReviewType.AI_ANALYSIS,
+                status=ReviewStatus.PENDING,
+            )
+            db.add(legal_review)
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="USE_CASE_APPROVED",
@@ -258,6 +266,14 @@ class WorkflowService:
             )
 
         vendor.status = VendorStatus.SECURITY_REVIEW
+        # Auto-create the SECURITY review so the AI analysis stage is ready
+        security_review = Review(
+            vendor_id=vendor_id,
+            stage=DocumentStage.SECURITY,
+            review_type=ReviewType.AI_ANALYSIS,
+            status=ReviewStatus.PENDING,
+        )
+        db.add(security_review)
         db.commit()
 
         self._log(
