@@ -1,241 +1,71 @@
-# GRC-AI-Automation
+<h1 align="center">AI Vendor Onboarding Orchestrator</h1>
 
-AI-augmented vendor onboarding pipeline for Security Governance, Risk, and Compliance (GRC). Automates a four-stage due diligence workflow — Use Case, Legal/Regulatory, Security Risk, and Financial Risk — using RAG-powered LLM analysis with a human-in-the-loop approval flow and full audit trail.
+<p align="center">
+  <b>Governance, Risk, and Compliance Workflows for humans and AI agents.</b><br/>
+  Automates legal, security, and financial risk analysis — so analysts spend time deciding, not researching.
+</p>
 
-**Backend:** FastAPI · Gunicorn (UvicornWorker) · SQLAlchemy / SQLite · ChromaDB · LangChain · LiteLLM
+<p align="center">
+  <a href="https://github.com/AlexPerrin/GRC-AI-Automation/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" />
+  </a>
+  <img src="https://img.shields.io/badge/stack-FastAPI%20%C2%B7%20React%20%C2%B7%20LangChain%20%C2%B7%20ChromaDB%20%C2%B7%20LiteLLM-informational" />
+  <img src="https://img.shields.io/badge/LLM-OpenRouter-blueviolet" />
+</p>
 
-**Frontend:** React 18 · TypeScript · Vite · Tailwind CSS · TanStack Query · React Router
+Vendor onboarding in security-conscious organizations is slow by design — it has to be. A GRC analyst must manually read through legal agreements, security questionnaires, and financial disclosures, synthesize findings across multiple regulatory frameworks (PIPEDA, GDPR, CPPA, SOC 2, PCI DSS), and coordinate across Product, Legal, Security, and Finance teams — all before a decision can be made. No shared context layer exists between reviewers. Findings aren't cited. Decisions aren't auditable. At most organizations, this process takes weeks.
 
-## Quickstart
+This system compresses that timeline to hours without removing human judgment from the process.
+
+A GRC analyst uploads vendor documents — NDAs, SOC 2 reports, privacy policies, financial disclosures — and the pipeline automatically runs four parallel due diligence stages. Each AI-powered stage uses RAG (Retrieval-Augmented Generation) to ground its analysis simultaneously in the vendor's submitted materials and an internal knowledge base of compliance frameworks. The analyst receives structured findings with per-criterion assessments, specific evidence citations pulled from the vendor's own documents, identified control gaps, and a recommended posture. Not raw text to wade through — a structured brief ready for a decision.
+
+**What the analyst can now do that they couldn't before:** Review a complete, cited, multi-framework risk assessment for a vendor in under an hour, across legal, security, and financial dimensions — without reading a single raw document themselves. The analyst's role shifts entirely from researcher to decision-maker.
+
+**What AI is responsible for:** Ingesting and parsing vendor documents; chunking, embedding, and indexing content into a vector store; retrieving relevant passages against targeted compliance queries; cross-referencing vendor claims against regulatory requirements and internal control frameworks; generating structured findings with evidence citations; and maintaining a complete, append-only audit trail of every analysis and decision in the workflow.
+
+**Where AI must stop:** The final approval decision — APPROVE, APPROVE WITH CONDITIONS, or REJECT — is reserved for the human analyst at every stage. This is a hard constraint. AI analysis can be wrong; vendor documents can be misleading; and the regulatory and financial consequences of onboarding a non-compliant vendor flow downstream to real audit findings and liability. A human signature on an approval is also a human accepting accountability. Automating that decision away would eliminate the organizational incentive to scrutinize the AI's output carefully — which is the only mechanism that keeps the system honest.
+
+**What breaks first at scale:** Retrieval quality. As the internal knowledge base grows and vendor document volume increases, naive cosine-similarity retrieval surfaces less relevant context per query. The next investment is hybrid retrieval (dense + sparse), cross-encoder re-ranking, and tighter knowledge base curation by domain experts. Prompt and rubric drift — where AI outputs gradually shift as the underlying model updates — is the second-order failure mode, and requires version-pinning model and prompt versions in the audit log.
+
+## Demo
+
+![](demo.png)
+
+# Getting Started
+
+**Prerequisites:** Docker and Docker Compose.
 
 ```bash
 git clone git@github.com:AlexPerrin/GRC-AI-Automation.git
 cd GRC-AI-Automation
-cp .env.example .env        # fill in LLM_PROVIDER_API_KEY
 docker compose up --build
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | `http://localhost:5173` |
-| API | `http://localhost:8000` |
-| Swagger UI | `http://localhost:8000/docs` |
-| ChromaDB | `http://localhost:8001` |
+Open `.env` and set `LLM_PROVIDER_API_KEY` to your Anthropic, OpenAI, or OpenRouter API key. The `LLM_PROVIDER` and `LLM_MODEL` variables have working defaults (`anthropic` / `claude-sonnet-4-6`) — change them only if you want to use a different provider.
 
-## Workflow
-
-Each vendor progresses through four independent review stages. Stages can be completed in any order — there are no hard status gates preventing decisions. A per-step progress indicator tracks completion based on actual decision records rather than vendor status.
-
-| Stage | Type | Completion trigger |
-|---|---|---|
-| 1. Use Case | Human form | Form submitted with PROCEED recommendation |
-| 2. NDA | Gate | `confirm-nda` endpoint called |
-| 3. Legal | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
-| 4. Security | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
-| 5. Financial | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
-
-All four reviews (Legal, Security, Financial, Use Case) are pre-created at intake so decisions can be recorded immediately without triggering AI analysis first.
-
-## Testing
-
-Tests use an isolated in-memory SQLite database and mocked service boundaries — no external services (ChromaDB, LLM API) required.
+Optionally, seed three pre-built vendor scenarios (clean pass, legal rejection, conditional approval) to explore the full workflow without uploading real documents:
 
 ```bash
-cd backend
-
-# Run the full suite
-.venv/bin/python -m pytest tests/ -v
-
-# Single module
-.venv/bin/python -m pytest tests/test_api_documents.py -v
+curl -X POST http://localhost:8000/dev/seed
 ```
 
-| Module | Tests | Covers |
-|---|---|---|
-| `test_config.py` | 6 | `llm_model_string` for all providers, `chroma_use_server` toggle |
-| `test_models.py` | 11 | ORM creation, FK relationships, cascade deletes, enum completeness |
-| `test_schemas.py` | 17 | Pydantic validation — valid payloads, rejected values, required fields |
-| `test_api_vendors.py` | 17 | Vendor CRUD, pagination, 404s, NDA confirmation, reject, health check |
-| `test_api_documents.py` | 10 | Upload 201, raw_text persistence, chroma_collection_id, 404s, list, get |
-| `test_api_reviews.py` | 10 | List/get reviews, trigger AI analysis (legal + security), 404s |
-| `test_api_workflow.py` | 21 | Intake, form submission, decisions, financial review, onboarding, reject |
-| `test_llm_client.py` | 7 | JSON parsing, markdown fence stripping, invalid JSON error |
-| `test_extractor.py` | 6 | PDF/DOCX/TXT extraction, None page text, non-UTF-8 bytes |
-| `test_chunker.py` | 7 | Long text splitting, metadata preservation, chunk_index, empty input |
-| `test_embedder.py` | 6 | Shape, lazy loading, model reuse, normalize flag |
-| `test_vector_store.py` | 7 | Upsert IDs/docs, query returns docs, collection_exists true/false |
-| `test_retriever.py` | 5 | Separator joining, n forwarding, single/empty chunk edge cases |
-| `test_kb_loader.py` | 5 | Skip when exists, seed when absent, partial seed, entry_id in metadata |
-| `test_legal_analyzer.py` | 9 | Return type, findings structure, edge cases, call counts |
-| `test_security_analyzer.py` | 10 | Return type, domain/gap structure, edge cases, call counts |
-| `test_workflow_intake.py` | 17 | create_vendor_and_intake, submit use case form, start financial review |
-| `test_workflow_legal.py` | 7 | Trigger legal review success/error, audit log events |
-| `test_workflow_security.py` | 11 | Confirm NDA (sets flag, no status gate), trigger security review success/error |
-| `test_workflow_decisions.py` | 25 | Legal/security/financial decisions, financial form, onboarding, reject |
-| **Total** | **214** | |
+The app is running at [`http://localhost:5173`](http://localhost:5173)
 
-## Environment Variables
+## Documentation
 
-Copy `.env.example` to `.env` and set `LLM_PROVIDER_API_KEY`. All other values have working defaults.
+| Resource | Link |
+|---|---|
+| Problem Definition & Background | [Wiki → Problem Statement](../../wiki/Project-Plan) |
+| Solution Design & Architecture | [Wiki → Solution Specification](../../wiki/MVP-Plan) |
 
-### LLM
+## whoami
 
-| Variable | Default | Description |
-|---|---|---|
-| `LLM_PROVIDER` | `anthropic` | Provider: `anthropic`, `openai`, or `openrouter` |
-| `LLM_MODEL` | `claude-sonnet-4-6` | Model ID passed to litellm |
-| `LLM_PROVIDER_API_KEY` | — | API key for the selected provider |
+**Hands-on AI experience:** 2-3 years. 
 
-| `LLM_PROVIDER` | `LLM_MODEL` | Notes |
-|---|---|---|
-| `anthropic` | `claude-sonnet-4-6` | Direct Anthropic API |
-| `openai` | `gpt-4o` | Direct OpenAI API |
-| `openrouter` | `anthropic/claude-sonnet-4-6` | Via OpenRouter |
-| `openrouter` | `meta-llama/llama-3.1-70b-instruct` | Via OpenRouter |
+At KOHO Financial, I built and shipped an LLM-powered vendor security due diligence pipeline (The Security Review portion of this submission) that reduced review turnaround from months to under a week. I was inspired by this experience to create a multi-agent workflow to assist with the entire vendor onboarding workflow end-to-end.
 
-### Database & Storage
+I have a degree in Software Engineering, where I studied machine learning and artificial intelligence.<br>[CMPE 452: Neural and Genetic Computing](https://github.com/AlexPerrin/School-Assignments/tree/1fd6403c9ffe2b7e6607f66dd1cd26b69bc15c63/CMPE%20452%3A%20Neural%20and%20Genetic%20Computing)
 
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:///./vendor_onboarding.db` | Overridden to a named volume path in Docker |
-| `CHROMA_HOST` | _(empty)_ | Leave blank for local embedded mode; set to `chromadb` in Docker |
-| `CHROMA_PORT` | `8000` | ChromaDB server port (Docker only) |
-| `CHROMA_PERSIST_DIR` | `./chroma_data` | Local persistence path (embedded mode only) |
-| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Local sentence-transformers model |
+I've also explored personal projects in AI, such as a security intrusion detection system to classify malicious network traffic. [Machine Learning Plugin for Snort3 Intrusion Detection System](https://github.com/AlexPerrin/snort3_ml)
 
-### Docker — Frontend
-
-| Variable | Default | Description |
-|---|---|---|
-| `FRONTEND_PORT` | `5173` | Host port mapped to the frontend container |
-| `BACKEND_HOST` | `api` | Hostname the nginx proxy forwards `/api` requests to |
-| `BACKEND_PORT` | `8000` | Backend port used by the nginx proxy |
-
-## API Overview
-
-Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
-
-### Vendors
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/vendors/` | Create a vendor (enters INTAKE state) |
-| `GET` | `/vendors/` | List all vendors (paginated) |
-| `GET` | `/vendors/{id}` | Get vendor by ID |
-| `POST` | `/vendors/{id}/start-intake` | Open Stage 1 Use Case review |
-| `POST` | `/vendors/{id}/confirm-nda` | Set `nda_confirmed = true` (no status gate) |
-| `POST` | `/vendors/{id}/start-financial-review` | Return or create Financial review record |
-| `POST` | `/vendors/{id}/complete-onboarding` | Set vendor status to ONBOARDED |
-| `POST` | `/vendors/{id}/reject` | Reject vendor from any stage |
-
-### Documents
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/vendors/{id}/documents` | Upload a document for a workflow stage |
-| `GET` | `/vendors/{id}/documents` | List documents for a vendor |
-| `GET` | `/documents/{id}` | Get document by ID |
-
-### Reviews
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/vendors/{id}/reviews` | List all reviews for a vendor |
-| `GET` | `/reviews/{id}` | Get review by ID |
-| `POST` | `/reviews/{id}/trigger` | Trigger AI analysis (Legal or Security stage) |
-| `POST` | `/reviews/{id}/submit-form` | Submit human form (Use Case or Financial stage) |
-
-### Decisions
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/reviews/{id}/decisions` | Record APPROVE / REJECT / APPROVE_WITH_CONDITIONS |
-| `GET` | `/reviews/{id}/decisions` | List decisions for a review |
-| `GET` | `/vendors/{id}/decisions` | List all decisions across all reviews for a vendor |
-
-### Audit
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/vendors/{id}/audit-logs` | List all audit events for a vendor (newest first) |
-
-### System
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Health check |
-
-## Project Structure
-
-```
-.
-├── backend/
-│   ├── main.py                          # FastAPI app + CORS + lifespan handler
-│   ├── gunicorn.conf.py                 # Gunicorn config — imports models before create_all
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── tests/
-│   ├── api/routes/
-│   │   ├── vendors.py
-│   │   ├── documents.py
-│   │   ├── reviews.py
-│   │   ├── decisions.py
-│   │   └── audit.py
-│   ├── core/
-│   │   ├── config.py                    # Pydantic settings
-│   │   ├── database.py                  # SQLAlchemy engine + session
-│   │   └── models.py                    # ORM models + enums (nda_confirmed on Vendor)
-│   ├── schemas/
-│   │   ├── vendor.py
-│   │   ├── document.py
-│   │   ├── review.py
-│   │   ├── decision.py
-│   │   ├── audit.py
-│   │   └── forms.py                     # UseCaseFormInput, FinancialRiskFormInput
-│   └── services/
-│       ├── workflow.py                  # WorkflowService (orchestration)
-│       ├── llm/client.py                # litellm wrapper
-│       ├── document/
-│       │   ├── extractor.py             # PDF/DOCX/text → raw text
-│       │   └── chunker.py               # raw text → chunks
-│       ├── rag/
-│       │   ├── embedder.py              # text → vectors
-│       │   ├── store.py                 # ChromaDB wrapper
-│       │   └── retriever.py             # query → context string
-│       ├── knowledge_base/
-│       │   ├── legal_kb.py
-│       │   ├── security_kb.py
-│       │   └── loader.py                # seeds KB into ChromaDB on startup
-│       ├── legal/analyzer.py            # Stage 2 AI module
-│       └── security/analyzer.py         # Stage 3 AI module
-├── frontend/
-│   ├── Dockerfile                       # Multi-stage: node build → nginx serve
-│   ├── nginx.conf                       # SPA routing + /api reverse proxy
-│   ├── docker-entrypoint.sh
-│   ├── package.json
-│   ├── vite.config.ts                   # Dev proxy: /api → localhost:8000
-│   ├── tailwind.config.js
-│   └── src/
-│       ├── main.tsx
-│       ├── App.tsx                      # Nav shell + routes
-│       ├── api/client.ts                # Typed fetch wrappers
-│       ├── types/index.ts               # TS interfaces mirroring backend schemas
-│       ├── components/
-│       │   ├── ui/                      # Badge, Button, Card, Spinner
-│       │   ├── StatusStepper.tsx        # Per-step completion (independent of vendor status)
-│       │   ├── DocumentUpload.tsx
-│       │   ├── DecisionPanel.tsx        # Shows approve/reject form or existing decision banner
-│       │   ├── AuditTrail.tsx
-│       │   └── ErrorBoundary.tsx
-│       ├── pages/
-│       │   ├── VendorListPage.tsx
-│       │   └── VendorDetailPage.tsx     # Tabs, stepper, per-stage summary cards
-│       └── stages/
-│           ├── ReviewPanel.tsx          # Generic AI review panel (documents, analysis, decisions)
-│           ├── UseCasePanel.tsx         # Stage 1 — human form
-│           ├── LegalReviewPanel.tsx     # Stage 2 — AI report + decisions
-│           ├── SecurityReviewPanel.tsx  # Stage 3 — AI report + decisions
-│           └── FinancialPanel.tsx       # Stage 4 — AI/human form + decisions
-├── docker-compose.yml
-└── .env.example
-```
+<p align="center">Copyright © 2025 <a href="https://github.com/AlexPerrin">Alex Perrin</a> · Released under the <a href="https://github.com/AlexPerrin/GRC-AI-Automation/blob/main/LICENSE">MIT License</a></p>
