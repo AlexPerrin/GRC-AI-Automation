@@ -1,0 +1,83 @@
+SECUREVAULT LTD. — VENDOR SECURITY QUESTIONNAIRE RESPONSE
+Prepared for: Procurement / GRC Review Team
+Date: February 2025
+
+1. COMPANY OVERVIEW
+
+SecureVault Ltd. is a UK-based document management and digital vault SaaS provider.
+We serve enterprise customers in financial services, legal, and professional services
+sectors. Our platform is hosted on AWS (eu-west-1 and eu-central-1 regions).
+
+2. ACCESS CONTROL
+
+We enforce role-based access control across all customer environments. User accounts
+are provisioned through our admin portal and follow a least-privilege model. Password
+policies require a minimum of 12 characters and complexity rules are enforced.
+
+Access to production infrastructure is restricted to the engineering operations team.
+All access events are logged and retained for 12 months. We are in the process of
+rolling out single sign-on (SSO) integration for enterprise customers. MFA is available
+as an optional feature for customer admin accounts.
+
+3. DATA ENCRYPTION
+
+All customer data is encrypted at rest using AES-256. Data in transit is protected
+using TLS 1.2 or higher. Encryption keys are managed using AWS Key Management Service
+(KMS). Key rotation is performed on an annual basis.
+
+4. INCIDENT RESPONSE
+
+SecureVault maintains an incident response plan reviewed by the security team. In the
+event of a confirmed security incident affecting customer data, we will notify affected
+customers as soon as reasonably practicable. Our security team investigates all reported
+incidents and applies remediation measures to prevent recurrence.
+
+We classify incidents by severity internally. Critical incidents are escalated to
+senior management. Post-incident reviews are conducted for major events. We do not
+currently publish a formal incident response SLA for customer notification timelines.
+
+5. VULNERABILITY MANAGEMENT
+
+We conduct internal vulnerability assessments on a quarterly basis using automated
+scanning tools. Critical and high-severity vulnerabilities are prioritised for
+remediation. Our patching policy targets critical patches within 30 days of vendor
+disclosure.
+
+We have not commissioned an independent third-party penetration test in the past 24
+months. We are evaluating external security assessment providers and plan to conduct
+a penetration test within the next fiscal year. Our application security practices
+include code review and use of static analysis tooling in our CI/CD pipeline.
+
+6. BUSINESS CONTINUITY AND DISASTER RECOVERY
+
+SecureVault operates across two AWS availability zones within each region to ensure
+high availability. Daily automated backups are performed and stored in a separate
+S3 bucket with versioning enabled. Backup integrity is tested on a quarterly basis.
+
+Our recovery time objective (RTO) is 4 hours and our recovery point objective (RPO)
+is 24 hours for full platform restoration. We conduct a tabletop business continuity
+exercise annually.
+
+7. SUPPLY CHAIN AND THIRD-PARTY RISK
+
+We maintain a register of critical sub-processors and infrastructure providers.
+Key providers include AWS (infrastructure), SendGrid (transactional email), and
+Datadog (monitoring). Each provider is reviewed at contract renewal. We require
+SOC 2 reports or equivalent certifications from Tier-1 suppliers.
+
+We do not have a formal software composition analysis (SCA) process in place for
+open-source dependencies, though we review dependency updates as part of our standard
+development workflow.
+
+8. CERTIFICATIONS AND AUDITS
+
+SecureVault holds ISO 27001 certification (certificate number: ISOC-2023-44821,
+valid through December 2025). We do not currently hold a SOC 2 report. Our ISO
+27001 scope covers the design, development, operation, and support of our SaaS
+document management platform.
+
+9. CONTACT
+
+Security enquiries: security@securevault.io
+Data Protection Officer: dpo@securevault.io
+SecureVault Ltd., 12 Finsbury Square, London EC2A 1AR, United Kingdom

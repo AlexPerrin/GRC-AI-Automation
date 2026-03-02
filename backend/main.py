@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import audit, decisions, documents, reviews, vendors
+from api.routes import audit, decisions, dev, documents, reviews, vendors
 from services.knowledge_base.loader import KnowledgeBaseLoader
 
 
@@ -39,6 +39,7 @@ app.include_router(documents.router, tags=["documents"])
 app.include_router(reviews.router, tags=["reviews"])
 app.include_router(decisions.router, tags=["decisions"])
 app.include_router(audit.router, tags=["audit"])
+app.include_router(dev.router)
 
 
 @app.get("/health", tags=["system"])

@@ -1,0 +1,60 @@
+DATAFLOW INC. — PRIVACY POLICY
+Last Updated: November 2024
+
+ABOUT THIS POLICY
+
+DataFlow Inc. ("DataFlow," "we") operates a cloud-based data integration platform.
+This privacy policy explains what information we collect and how we use it. We are
+committed to protecting the privacy of our customers and their end users.
+
+INFORMATION WE COLLECT
+
+When customers use our platform, we may process the following data on their behalf:
+contact information (names, email addresses), transaction records, customer-submitted
+datasets, and platform usage logs. We collect this data to provide and improve our
+services.
+
+DATA PROCESSING
+
+DataFlow processes customer data according to their instructions. Customers retain
+ownership of their data at all times. We do not sell customer data to third parties
+or use it for our own marketing purposes. Our engineers may access customer data
+when required to provide technical support, subject to internal access controls.
+
+We engage third-party service providers ("sub-processors") to assist in delivering our
+services, including cloud infrastructure providers and analytics tools. These providers
+are contractually required to maintain appropriate security standards.
+
+SECURITY
+
+We take the security of customer data seriously. Our platform uses encryption to
+protect data during transmission. Access to customer environments is restricted to
+authorised DataFlow personnel. We conduct regular internal security reviews and
+maintain security policies covering acceptable use, incident response, and access
+management.
+
+DATA RETENTION
+
+We retain customer data for the duration of the service agreement. Upon termination,
+customer data is deleted within a reasonable time frame consistent with our operational
+requirements and applicable law.
+
+YOUR RIGHTS
+
+Depending on where you are located, you may have rights regarding your personal data,
+including the right to access, correct, or delete information we hold. To exercise
+these rights, please contact us at privacy@dataflow.io and we will respond in
+accordance with applicable law.
+
+CHANGES TO THIS POLICY
+
+We may update this privacy policy from time to time. We will notify customers of
+material changes by posting a notice on our website or by email. Continued use of
+the service after changes take effect constitutes acceptance of the revised policy.
+
+CONTACT
+
+DataFlow Inc.
+742 Evergreen Terrace, Suite 200
+Springfield, IL 62701
+privacy@dataflow.io
