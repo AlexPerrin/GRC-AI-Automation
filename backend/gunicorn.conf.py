@@ -18,5 +18,6 @@ preload_app = False
 
 def on_starting(server):
     """Run DB migrations once in the master process before workers fork."""
+    import core.models  # noqa: F401 — registers all ORM models with Base.metadata
     from core.database import Base, engine
     Base.metadata.create_all(bind=engine)

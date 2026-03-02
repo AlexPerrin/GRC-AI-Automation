@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import Vendor, VendorStatus
+from core.models import Decision, DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
+from schemas.decision import DecisionRead
+from schemas.review import ReviewRead
 from schemas.vendor import VendorCreate, VendorList, VendorRead
 from services.workflow import WorkflowService
 
@@ -58,25 +61,26 @@ def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    if vendor.status != VendorStatus.LEGAL_APPROVED:
-        raise HTTPException(
-            status_code=400,
-            detail=f"NDA confirmation requires status LEGAL_APPROVED, current: {vendor.status}",
-        )
     return WorkflowService(db).confirm_nda(vendor_id)
 
 
-@router.post("/{vendor_id}/start-financial-review", response_model=VendorRead)
+@router.post("/{vendor_id}/start-financial-review", response_model=ReviewRead)
 def start_financial_review(vendor_id: int, db: Session = Depends(get_db)):
     """Open Stage 4 Financial review for a vendor in SECURITY_APPROVED status."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.FINANCIAL)
+        .first()
+    )
+    if existing:
+        return existing
     try:
-        vendor, _review = WorkflowService(db).start_financial_review(vendor_id)
+        return WorkflowService(db).start_financial_review(vendor_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return vendor
 
 
 @router.post("/{vendor_id}/complete-onboarding", response_model=VendorRead)
@@ -91,13 +95,78 @@ def complete_onboarding(vendor_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.post("/{vendor_id}/start-legal-review", response_model=ReviewRead)
+def start_legal_review(vendor_id: int, db: Session = Depends(get_db)):
+    """Return existing LEGAL review or create one if it doesn't exist yet."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.LEGAL)
+        .first()
+    )
+    if existing:
+        return existing
+    review = Review(
+        vendor_id=vendor_id,
+        stage=DocumentStage.LEGAL,
+        review_type=ReviewType.AI_ANALYSIS,
+        status=ReviewStatus.PENDING,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+@router.post("/{vendor_id}/start-security-review", response_model=ReviewRead)
+def start_security_review(vendor_id: int, db: Session = Depends(get_db)):
+    """Return existing SECURITY review or create one if it doesn't exist yet."""
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.SECURITY)
+        .first()
+    )
+    if existing:
+        return existing
+    review = Review(
+        vendor_id=vendor_id,
+        stage=DocumentStage.SECURITY,
+        review_type=ReviewType.AI_ANALYSIS,
+        status=ReviewStatus.PENDING,
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+@router.get("/{vendor_id}/decisions", response_model=list[DecisionRead])
+def list_vendor_decisions(vendor_id: int, db: Session = Depends(get_db)):
+    """Return all decisions recorded against any review belonging to this vendor."""
+    review_ids = [
+        r.id for r in db.query(Review.id).filter(Review.vendor_id == vendor_id).all()
+    ]
+    if not review_ids:
+        return []
+    return db.query(Decision).filter(Decision.review_id.in_(review_ids)).all()
+
+
+class RejectPayload(BaseModel):
+    rationale: str
+
+
 @router.post("/{vendor_id}/reject", response_model=VendorRead)
-def reject_vendor(vendor_id: int, rationale: str, db: Session = Depends(get_db)):
+def reject_vendor(vendor_id: int, payload: RejectPayload, db: Session = Depends(get_db)):
     """Reject a vendor at any stage."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
     try:
-        return WorkflowService(db).reject_vendor(vendor_id, stage="MANUAL", rationale=rationale)
+        return WorkflowService(db).reject_vendor(vendor_id, stage="MANUAL", rationale=payload.rationale)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

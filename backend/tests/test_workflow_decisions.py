@@ -120,12 +120,13 @@ class TestSubmitLegalDecision:
         assert log is not None
         assert log.payload["stage"] == "LEGAL"
 
-    def test_raises_if_review_not_complete(self, db_session):
+    def test_decision_allowed_on_pending_review(self, db_session):
+        # No COMPLETE gate — decisions can be recorded regardless of review status
         v = _make_vendor(db_session, status=VendorStatus.LEGAL_REVIEW)
         r = _make_pending_review(db_session, v.id, DocumentStage.LEGAL)
         svc = WorkflowService(db_session)
-        with pytest.raises(ValueError, match="COMPLETE"):
-            svc.submit_legal_decision(r.id, "APPROVE", "ok")
+        vendor = svc.submit_legal_decision(r.id, "APPROVE", "ok")
+        assert vendor.status == VendorStatus.LEGAL_APPROVED
 
     def test_raises_if_review_not_found(self, db_session):
         svc = WorkflowService(db_session)
@@ -164,12 +165,13 @@ class TestSubmitSecurityDecision:
         assert log is not None
         assert log.actor == "sec_team"
 
-    def test_raises_if_review_not_complete(self, db_session):
+    def test_decision_allowed_on_pending_review(self, db_session):
+        # No COMPLETE gate — decisions can be recorded regardless of review status
         v = _make_vendor(db_session, status=VendorStatus.SECURITY_REVIEW)
         r = _make_pending_review(db_session, v.id, DocumentStage.SECURITY)
         svc = WorkflowService(db_session)
-        with pytest.raises(ValueError, match="COMPLETE"):
-            svc.submit_security_decision(r.id, "APPROVE", "ok")
+        vendor = svc.submit_security_decision(r.id, "APPROVE", "ok")
+        assert vendor.status == VendorStatus.SECURITY_APPROVED
 
     def test_raises_if_review_not_found(self, db_session):
         svc = WorkflowService(db_session)
@@ -195,29 +197,32 @@ class TestSubmitFinancialForm:
         db_session.refresh(r)
         return v, r
 
-    def test_acceptable_advances_to_financial_approved(self, db_session):
+    def test_acceptable_marks_review_complete(self, db_session):
+        # submit_financial_form records form and marks review COMPLETE;
+        # vendor status advancement is handled separately via the Decision system
         v, r = self._setup(db_session)
         svc = WorkflowService(db_session)
-        svc.submit_financial_form(r.id, _financial_form(recommendation="ACCEPTABLE"))
+        result = svc.submit_financial_form(r.id, _financial_form(recommendation="ACCEPTABLE"))
+        assert result.status == ReviewStatus.COMPLETE
         db_session.refresh(v)
-        assert v.status == VendorStatus.FINANCIAL_APPROVED
+        assert v.status == VendorStatus.FINANCIAL_REVIEW  # unchanged
 
-    def test_acceptable_with_conditions_advances_to_financial_approved(self, db_session):
+    def test_acceptable_with_conditions_marks_review_complete(self, db_session):
         v, r = self._setup(db_session)
         svc = WorkflowService(db_session)
-        svc.submit_financial_form(
+        result = svc.submit_financial_form(
             r.id,
             _financial_form(recommendation="ACCEPTABLE_WITH_CONDITIONS", conditions=["Pay upfront"]),
         )
-        db_session.refresh(v)
-        assert v.status == VendorStatus.FINANCIAL_APPROVED
+        assert result.status == ReviewStatus.COMPLETE
 
-    def test_unacceptable_sets_vendor_rejected(self, db_session):
+    def test_unacceptable_marks_review_complete(self, db_session):
         v, r = self._setup(db_session)
         svc = WorkflowService(db_session)
-        svc.submit_financial_form(r.id, _financial_form(recommendation="UNACCEPTABLE"))
+        result = svc.submit_financial_form(r.id, _financial_form(recommendation="UNACCEPTABLE"))
+        assert result.status == ReviewStatus.COMPLETE
         db_session.refresh(v)
-        assert v.status == VendorStatus.REJECTED
+        assert v.status == VendorStatus.FINANCIAL_REVIEW  # unchanged
 
     def test_review_status_set_to_complete(self, db_session):
         _v, r = self._setup(db_session)
@@ -232,26 +237,16 @@ class TestSubmitFinancialForm:
         assert result.form_input["reviewer_name"] == "Carol"
         assert result.completed_at is not None
 
-    def test_acceptable_creates_financial_approved_audit_log(self, db_session):
+    def test_creates_financial_form_submitted_audit_log(self, db_session):
         v, r = self._setup(db_session)
         svc = WorkflowService(db_session)
         svc.submit_financial_form(r.id, _financial_form(recommendation="ACCEPTABLE"))
         log = db_session.query(AuditLog).filter(
             AuditLog.vendor_id == v.id,
-            AuditLog.event_type == "FINANCIAL_APPROVED",
+            AuditLog.event_type == "FINANCIAL_FORM_SUBMITTED",
         ).first()
         assert log is not None
-
-    def test_unacceptable_creates_vendor_rejected_audit_log(self, db_session):
-        v, r = self._setup(db_session)
-        svc = WorkflowService(db_session)
-        svc.submit_financial_form(r.id, _financial_form(recommendation="UNACCEPTABLE"))
-        log = db_session.query(AuditLog).filter(
-            AuditLog.vendor_id == v.id,
-            AuditLog.event_type == "VENDOR_REJECTED",
-        ).first()
-        assert log is not None
-        assert log.payload["stage"] == "FINANCIAL"
+        assert log.payload["recommendation"] == "ACCEPTABLE"
 
 
 # ---------------------------------------------------------------------------
@@ -276,11 +271,12 @@ class TestCompleteOnboarding:
         assert log is not None
         assert log.actor == "system"
 
-    def test_raises_if_not_financial_approved(self, db_session):
+    def test_any_status_can_complete_onboarding(self, db_session):
+        # No FINANCIAL_APPROVED gate — any vendor can be onboarded
         v = _make_vendor(db_session, status=VendorStatus.SECURITY_APPROVED)
         svc = WorkflowService(db_session)
-        with pytest.raises(ValueError, match="FINANCIAL_APPROVED"):
-            svc.complete_onboarding(v.id)
+        vendor = svc.complete_onboarding(v.id)
+        assert vendor.status == VendorStatus.ONBOARDED
 
     def test_raises_if_vendor_not_found(self, db_session):
         svc = WorkflowService(db_session)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import Decision, DocumentStage, Review, ReviewStatus
+from core.models import Decision, DocumentStage, Review
 from schemas.decision import DecisionCreate, DecisionRead
 from services.workflow import WorkflowService
 
@@ -26,12 +26,6 @@ def create_decision(
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    if review.status != ReviewStatus.COMPLETE:
-        raise HTTPException(
-            status_code=400,
-            detail="Review must be COMPLETE before recording a decision",
-        )
-
     decision = Decision(review_id=review_id, **payload.model_dump())
     db.add(decision)
     db.commit()
@@ -49,6 +43,14 @@ def create_decision(
             )
         elif review.stage == DocumentStage.SECURITY:
             svc.submit_security_decision(
+                review_id=review_id,
+                action=payload.action.value,
+                rationale=payload.rationale,
+                conditions=payload.conditions,
+                actor=payload.actor,
+            )
+        elif review.stage == DocumentStage.FINANCIAL:
+            svc.submit_financial_decision(
                 review_id=review_id,
                 action=payload.action.value,
                 rationale=payload.rationale,

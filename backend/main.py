@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import decisions, documents, reviews, vendors
+from api.routes import audit, decisions, documents, reviews, vendors
 from services.knowledge_base.loader import KnowledgeBaseLoader
 
 
@@ -26,10 +27,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
 app.include_router(documents.router, tags=["documents"])
 app.include_router(reviews.router, tags=["reviews"])
 app.include_router(decisions.router, tags=["decisions"])
+app.include_router(audit.router, tags=["audit"])
 
 
 @app.get("/health", tags=["system"])

@@ -145,14 +145,28 @@ class TestTriggerAiReview:
         data = resp.json()
         assert data["status"] == "COMPLETE"
 
-    def test_trigger_security_stage_nda_gate_returns_403(self, client, db_session):
-        """Vendor not in SECURITY_REVIEW (NDA not confirmed) -> 403."""
+    def test_trigger_security_stage_no_nda_gate(self, client, db_session):
+        """NDA gate removed — security review can be triggered from any vendor status."""
         vendor = _create_vendor(db_session, status=VendorStatus.LEGAL_APPROVED)
         review = _create_review(
             db_session, vendor.id, stage=DocumentStage.SECURITY, review_type=ReviewType.AI_ANALYSIS
         )
-        resp = client.post(f"/reviews/{review.id}/trigger", params={"doc_id": 1})
-        assert resp.status_code == 403
+        mock_review = Review(
+            id=review.id,
+            vendor_id=review.vendor_id,
+            stage=DocumentStage.SECURITY,
+            review_type=ReviewType.AI_ANALYSIS,
+            status=ReviewStatus.COMPLETE,
+            ai_output={"overall_risk": "low", "recommendation": "approve"},
+            triggered_at=review.triggered_at,
+            completed_at=None,
+        )
+        with patch(
+            "api.routes.reviews.WorkflowService.trigger_security_review",
+            new=AsyncMock(return_value=mock_review),
+        ):
+            resp = client.post(f"/reviews/{review.id}/trigger", params={"doc_id": 1})
+        assert resp.status_code == 200
 
     def test_trigger_security_stage_mocked_success_returns_200(self, client, db_session):
         vendor = _create_vendor(db_session, status=VendorStatus.SECURITY_REVIEW)

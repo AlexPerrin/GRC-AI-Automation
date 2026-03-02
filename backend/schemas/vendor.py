@@ -18,6 +18,7 @@ class VendorRead(BaseModel):
     website: Optional[str]
     description: Optional[str]
     status: VendorStatus
+    nda_confirmed: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

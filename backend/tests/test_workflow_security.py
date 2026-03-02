@@ -77,11 +77,13 @@ def _make_analysis_result(overall_risk: str = "medium", recommendation: str = "a
 # ---------------------------------------------------------------------------
 
 class TestConfirmNda:
-    def test_advances_vendor_status_to_security_review(self, db_session, vendor):
+    def test_sets_nda_confirmed_flag(self, db_session, vendor):
+        # confirm_nda sets nda_confirmed without changing vendor status
         assert vendor.status == VendorStatus.LEGAL_APPROVED
         svc = WorkflowService(db=db_session)
         returned = svc.confirm_nda(vendor.id)
-        assert returned.status == VendorStatus.SECURITY_REVIEW
+        assert returned.nda_confirmed is True
+        assert returned.status == VendorStatus.LEGAL_APPROVED
 
     def test_audit_log_nda_confirmed_created(self, db_session, vendor):
         WorkflowService(db=db_session).confirm_nda(vendor.id)
@@ -93,12 +95,13 @@ class TestConfirmNda:
         assert log is not None
         assert log.vendor_id == vendor.id
 
-    def test_raises_for_wrong_status(self, db_session):
-        v = Vendor(name="Wrong Status Vendor", status=VendorStatus.INTAKE)
+    def test_works_from_any_status(self, db_session):
+        # No status gate — NDA can be confirmed at any point
+        v = Vendor(name="Any Status Vendor", status=VendorStatus.INTAKE)
         db_session.add(v)
         db_session.commit()
-        with pytest.raises(ValueError, match="LEGAL_APPROVED"):
-            WorkflowService(db=db_session).confirm_nda(v.id)
+        returned = WorkflowService(db=db_session).confirm_nda(v.id)
+        assert returned.nda_confirmed is True
 
     def test_raises_for_missing_vendor(self, db_session):
         with pytest.raises(ValueError, match="not found"):
@@ -193,10 +196,9 @@ class TestTriggerSecurityReviewError:
 
 
 class TestNdaGate:
-    async def test_trigger_security_review_raises_permission_error_if_not_security_review(
-        self, db_session
-    ):
-        """Vendor in LEGAL_APPROVED (NDA not yet confirmed) should raise PermissionError."""
+    async def test_trigger_security_review_no_nda_gate(self, db_session):
+        """NDA gate removed — security review can be triggered from any vendor status."""
+        from unittest.mock import AsyncMock, patch
         v = Vendor(name="Gate Test Vendor", status=VendorStatus.LEGAL_APPROVED)
         db_session.add(v)
         db_session.commit()
@@ -209,5 +211,9 @@ class TestNdaGate:
         db_session.add(r)
         db_session.commit()
 
-        with pytest.raises(PermissionError, match="NDA must be confirmed"):
-            await WorkflowService(db=db_session).trigger_security_review(r.id, doc_id=1)
+        with patch(
+            "services.workflow.SecurityAnalyzer.analyze",
+            new=AsyncMock(return_value=_make_analysis_result()),
+        ):
+            review = await WorkflowService(db=db_session).trigger_security_review(r.id, doc_id=1)
+        assert review.status == ReviewStatus.COMPLETE
