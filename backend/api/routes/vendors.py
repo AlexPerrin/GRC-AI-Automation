@@ -59,10 +59,10 @@ def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    if vendor.status != VendorStatus.LEGAL_APPROVED:
+    if vendor.status != VendorStatus.USE_CASE_APPROVED:
         raise HTTPException(
             status_code=400,
-            detail=f"NDA confirmation requires status LEGAL_APPROVED, current: {vendor.status}",
+            detail=f"NDA confirmation requires status USE_CASE_APPROVED, current: {vendor.status}",
         )
     return WorkflowService(db).confirm_nda(vendor_id)
 

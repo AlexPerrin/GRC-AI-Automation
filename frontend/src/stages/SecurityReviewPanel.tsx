@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { confirmNda, startSecurityReview } from '../api/client'
+import { startSecurityReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import type { ControlFinding, Document, Review, SecurityAnalysisResult, Vendor } from '../types'
 import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
@@ -209,38 +207,10 @@ function renderSummary(output: unknown): React.ReactNode {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SecurityReviewPanel({ review, documents, vendor }: SecurityReviewPanelProps) {
-  const queryClient = useQueryClient()
-
-  const ndaMutation = useMutation({
-    mutationFn: () => confirmNda(vendor.id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
-    },
-  })
-
-  // NDA gate
-  if (vendor.status === 'LEGAL_APPROVED') {
+  if (['INTAKE', 'USE_CASE_REVIEW', 'USE_CASE_APPROVED', 'NDA_PENDING', 'LEGAL_REVIEW'].includes(vendor.status)) {
     return (
       <Card>
-        <h3 className="text-base font-semibold text-gray-900 mb-2">NDA Required</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          NDA execution must be confirmed before the security review can begin.
-        </p>
-        {ndaMutation.isError && (
-          <p className="text-sm text-red-600 mb-2">{(ndaMutation.error as Error).message}</p>
-        )}
-        <Button onClick={() => ndaMutation.mutate()} disabled={ndaMutation.isPending}>
-          {ndaMutation.isPending ? 'Confirming…' : 'Confirm NDA Executed'}
-        </Button>
-      </Card>
-    )
-  }
-
-  // Not yet at NDA stage
-  if (['INTAKE', 'USE_CASE_REVIEW', 'USE_CASE_APPROVED', 'LEGAL_REVIEW'].includes(vendor.status)) {
-    return (
-      <Card>
-        <p className="text-sm text-gray-500">Security review will be available after legal approval and NDA confirmation.</p>
+        <p className="text-sm text-gray-500">Security review will be available after legal approval.</p>
       </Card>
     )
   }

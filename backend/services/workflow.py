@@ -96,14 +96,7 @@ class WorkflowService:
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
         if form.recommendation == "PROCEED":
             vendor.status = VendorStatus.USE_CASE_APPROVED
-            # Auto-create the LEGAL review so the AI analysis stage is ready
-            legal_review = Review(
-                vendor_id=review.vendor_id,
-                stage=DocumentStage.LEGAL,
-                review_type=ReviewType.AI_ANALYSIS,
-                status=ReviewStatus.PENDING,
-            )
-            db.add(legal_review)
+            # NDA confirmation (confirm_nda) will create the LEGAL review
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="USE_CASE_APPROVED",
@@ -253,7 +246,7 @@ class WorkflowService:
     def confirm_nda(self, vendor_id: int) -> Vendor:
         """
         Confirm NDA execution for a vendor.
-        Requires vendor status == LEGAL_APPROVED; advances to SECURITY_REVIEW.
+        Requires vendor status == USE_CASE_APPROVED; advances to LEGAL_REVIEW.
         Raises ValueError if the vendor is not found or in the wrong state.
         """
         db = self.db
@@ -261,20 +254,20 @@ class WorkflowService:
         vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
         if not vendor:
             raise ValueError(f"Vendor {vendor_id} not found")
-        if vendor.status != VendorStatus.LEGAL_APPROVED:
+        if vendor.status != VendorStatus.USE_CASE_APPROVED:
             raise ValueError(
-                f"NDA confirmation requires status LEGAL_APPROVED, current: {vendor.status}"
+                f"NDA confirmation requires status USE_CASE_APPROVED, current: {vendor.status}"
             )
 
-        vendor.status = VendorStatus.SECURITY_REVIEW
-        # Auto-create the SECURITY review so the AI analysis stage is ready
-        security_review = Review(
+        vendor.status = VendorStatus.LEGAL_REVIEW
+        # Auto-create the LEGAL review so the AI analysis stage is ready
+        legal_review = Review(
             vendor_id=vendor_id,
-            stage=DocumentStage.SECURITY,
+            stage=DocumentStage.LEGAL,
             review_type=ReviewType.AI_ANALYSIS,
             status=ReviewStatus.PENDING,
         )
-        db.add(security_review)
+        db.add(legal_review)
         db.commit()
 
         self._log(
@@ -304,10 +297,16 @@ class WorkflowService:
             raise ValueError(f"Review {review_id} not found")
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
-        if not vendor or vendor.status != VendorStatus.SECURITY_REVIEW:
+        if not vendor or vendor.status not in (
+            VendorStatus.LEGAL_APPROVED, VendorStatus.SECURITY_REVIEW
+        ):
             raise PermissionError(
-                "Security review requires vendor status SECURITY_REVIEW (NDA must be confirmed first)"
+                "Security review requires vendor status LEGAL_APPROVED or SECURITY_REVIEW"
             )
+
+        if vendor.status != VendorStatus.SECURITY_REVIEW:
+            vendor.status = VendorStatus.SECURITY_REVIEW
+            db.commit()
 
         review.status = ReviewStatus.IN_PROGRESS
         db.commit()

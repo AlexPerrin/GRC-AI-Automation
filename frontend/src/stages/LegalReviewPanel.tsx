@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { startLegalReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import type { Document, LegalAnalysisResult, LegalRegulationFinding, Review } from '../types'
+import type { Document, LegalAnalysisResult, LegalRegulationFinding, Review, Vendor } from '../types'
 import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
 
 interface LegalReviewPanelProps {
   review: Review | undefined
   documents: Document[]
   vendorId: number
+  vendor: Vendor
 }
 
 // ── Row type ──────────────────────────────────────────────────────────────────
@@ -168,7 +169,7 @@ function renderSummary(output: unknown): React.ReactNode {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function LegalReviewPanel({ review, documents, vendorId }: LegalReviewPanelProps) {
+export default function LegalReviewPanel({ review, documents, vendorId, vendor: _vendor }: LegalReviewPanelProps) {
   return (
     <ReviewPanel<LegalRow>
       review={review}

@@ -1,7 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { completeOnboarding, startFinancialReview } from '../api/client'
+import { useQueryClient } from '@tanstack/react-query'
+import { startFinancialReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import type { Document, FinancialAnalysisResult, FinancialFinding, Review, Vendor } from '../types'
 import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
@@ -145,36 +144,6 @@ function renderSummary(output: unknown): React.ReactNode {
   )
 }
 
-// ── Complete Onboarding card ───────────────────────────────────────────────────
-
-function CompleteOnboardingCard({ vendor }: { vendor: Vendor }) {
-  const queryClient = useQueryClient()
-  const mutation = useMutation({
-    mutationFn: () => completeOnboarding(vendor.id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
-      void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
-    },
-  })
-
-  if (vendor.status !== 'FINANCIAL_APPROVED') return null
-
-  return (
-    <Card>
-      <h3 className="text-base font-semibold text-gray-900 mb-3">Complete Onboarding</h3>
-      <p className="text-sm text-gray-600 mb-4">
-        Financial review has been approved. Complete onboarding to finalise vendor status.
-      </p>
-      {mutation.isError && (
-        <p className="text-sm text-red-600 mb-2">{(mutation.error as Error).message}</p>
-      )}
-      <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-        {mutation.isPending ? 'Completing…' : 'Complete Onboarding'}
-      </Button>
-    </Card>
-  )
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FinancialPanel({ review, documents, vendor }: FinancialPanelProps) {
@@ -208,22 +177,19 @@ export default function FinancialPanel({ review, documents, vendor }: FinancialP
   }
 
   return (
-    <div className="space-y-6">
-      <ReviewPanel<FinancialRow>
-        review={review}
-        documents={documents}
-        vendorId={vendor.id}
-        stage="FINANCIAL"
-        docType="financial_statement"
-        title="Financial Analysis"
-        startReview={startReview}
-        emptyRow={emptyRow}
-        seedRows={seedRows}
-        editColumns={editColumns}
-        renderViewBody={renderViewBody}
-        renderSummary={renderSummary}
-      />
-      <CompleteOnboardingCard vendor={vendor} />
-    </div>
+    <ReviewPanel<FinancialRow>
+      review={review}
+      documents={documents}
+      vendorId={vendor.id}
+      stage="FINANCIAL"
+      docType="financial_statement"
+      title="Financial Analysis"
+      startReview={startReview}
+      emptyRow={emptyRow}
+      seedRows={seedRows}
+      editColumns={editColumns}
+      renderViewBody={renderViewBody}
+      renderSummary={renderSummary}
+    />
   )
 }
