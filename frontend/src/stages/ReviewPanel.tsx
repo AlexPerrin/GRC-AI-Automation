@@ -250,6 +250,7 @@ export default function ReviewPanel<TRow extends { _id: number }>({
   // Refs — don't cause re-renders, safe to read inside effects/callbacks
   const seededIdRef = useRef<number | null>(null)  // which review.id has been seeded
   const loadedRef = useRef(false)                  // whether localStorage was attempted
+  const userModifiedRef = useRef(false)            // whether user has changed rows/summary
 
   // Seed rows/summary: try localStorage first, fall back to AI output
   useEffect(() => {
@@ -291,18 +292,23 @@ export default function ReviewPanel<TRow extends { _id: number }>({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [review?.id, review?.status, review?.ai_output])
 
-  // Persist rows to localStorage whenever they change
+  // Persist rows to localStorage whenever they change.
+  // Guard: skip the transient empty-rows state on mount before seeding completes,
+  // so we never overwrite non-empty saved data with [].
   useEffect(() => {
-    if (review?.id) {
-      localStorage.setItem(`review-rows-${review.id}`, JSON.stringify(rows))
-    }
+    if (!review?.id) return
+    if (rows.length === 0 && !userModifiedRef.current) return
+    localStorage.setItem(`review-rows-${review.id}`, JSON.stringify(rows))
   }, [rows, review?.id])
 
-  // Persist summary to localStorage whenever it changes
+  // Persist summary to localStorage whenever it changes.
+  // Same guard: only write when the user has actually changed something or there
+  // is real content — don't overwrite saved values with the blank initial state.
   useEffect(() => {
-    if (review?.id && extractSummary) {
-      localStorage.setItem(`review-summary-${review.id}`, JSON.stringify(summaryFields))
-    }
+    if (!review?.id || !extractSummary) return
+    const hasContent = summaryFields.riskScore || summaryFields.riskRating || summaryFields.recommendation
+    if (!hasContent && !userModifiedRef.current) return
+    localStorage.setItem(`review-summary-${review.id}`, JSON.stringify(summaryFields))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summaryFields, review?.id])
 
@@ -318,6 +324,7 @@ export default function ReviewPanel<TRow extends { _id: number }>({
     },
     onSuccess: () => {
       // Reset so new AI output is picked up after regeneration
+      userModifiedRef.current = false
       seededIdRef.current = null
       loadedRef.current = false
       setRows([])
@@ -331,14 +338,17 @@ export default function ReviewPanel<TRow extends { _id: number }>({
   })
 
   function updateRow(id: number, field: string, value: string) {
+    userModifiedRef.current = true
     setRows(prev => prev.map(r => r._id === id ? { ...r, [field]: value } : r))
   }
 
   function deleteRow(id: number) {
+    userModifiedRef.current = true
     setRows(prev => prev.filter(r => r._id !== id))
   }
 
   function addRow() {
+    userModifiedRef.current = true
     setRows(prev => [...prev, { ...emptyRow(), _id: uid() } as TRow])
   }
 
@@ -418,7 +428,10 @@ export default function ReviewPanel<TRow extends { _id: number }>({
           <div className="mb-6">
             <EditableSummaryHeader
               fields={summaryFields}
-              onChange={(field, value) => setSummaryFields(prev => ({ ...prev, [field]: value }))}
+              onChange={(field, value) => {
+                userModifiedRef.current = true
+                setSummaryFields(prev => ({ ...prev, [field]: value }))
+              }}
               isEditing={isEditing}
             />
           </div>

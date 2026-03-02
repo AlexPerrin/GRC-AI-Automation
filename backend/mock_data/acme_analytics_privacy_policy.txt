@@ -1,0 +1,87 @@
+ACME ANALYTICS INC. — PRIVACY AND DATA PROCESSING POLICY
+Effective Date: 1 March 2025 | Version 4.1
+
+1. INTRODUCTION AND SCOPE
+
+Acme Analytics Inc. ("Acme," "we," "us") provides business intelligence and analytics
+services to enterprise customers. This policy describes how we collect, process, store,
+and protect personal data on behalf of our customers ("Controllers") and explains the
+rights available to individuals ("Data Subjects") whose data we process.
+
+This policy applies to all personal data processed by Acme in connection with the
+delivery of our SaaS analytics platform and any professional services engagements.
+
+2. ROLES AND LEGAL BASIS
+
+Acme acts as a Data Processor under the General Data Protection Regulation (GDPR)
+Article 4(8) and as a Service Provider under the California Consumer Privacy Act (CCPA).
+Our customers act as Data Controllers and determine the purposes and means of processing.
+We process personal data solely on documented instructions from Controllers.
+
+We enter into a Data Processing Agreement (DPA) with each customer that meets the
+requirements of GDPR Article 28, including: subject matter, duration, nature and purpose
+of processing, type of personal data, categories of Data Subjects, and obligations and
+rights of the Controller. Sub-processors are listed in our DPA Annex and updated 30 days
+before any material change.
+
+3. DATA WE PROCESS
+
+On behalf of Controllers we may process: names, email addresses, job titles, usage
+analytics events, device identifiers, and aggregated behavioural metrics. We do not
+process special categories of personal data (Article 9 GDPR) unless specifically
+contracted to do so with appropriate safeguards.
+
+4. INTERNATIONAL DATA TRANSFERS
+
+Acme is headquartered in Toronto, Canada — recognised by the European Commission as
+providing adequate protection under GDPR Article 45 (adequacy decision for Canada /
+PIPEDA, commercial organisations). For transfers to our US-based infrastructure
+providers, we rely on Standard Contractual Clauses (SCCs, Commission Implementing
+Decision 2021/914) incorporated into our sub-processor DPAs. A Transfer Impact
+Assessment (TIA) is maintained and available to Controllers on request.
+
+5. SECURITY MEASURES
+
+We implement technical and organisational measures (TOMs) appropriate to the risk,
+including:
+- AES-256 encryption at rest for all stored personal data
+- TLS 1.2+ for data in transit
+- Role-based access control (RBAC) with least-privilege enforcement
+- Multi-factor authentication (MFA) required for all staff accessing production systems
+- Annual third-party penetration testing; most recent report (SOC 2 Type II, 2024) available
+  under NDA
+- Continuous vulnerability scanning and a 30-day critical patch SLA
+
+6. DATA RETENTION AND DELETION
+
+Data is retained for the duration of the customer contract plus 90 days, after which it
+is securely deleted using NIST 800-88 media sanitisation guidelines. Customers may
+request deletion at any time via our data subject request portal. Deletion is confirmed
+in writing within 10 business days.
+
+7. BREACH NOTIFICATION
+
+In the event of a personal data breach, Acme will notify the affected Controller without
+undue delay and, where feasible, within 72 hours of becoming aware of the breach, in
+accordance with GDPR Article 33. Notifications include: nature of the breach, categories
+and approximate number of Data Subjects affected, likely consequences, and measures
+taken or proposed to address the breach.
+
+8. DATA SUBJECT RIGHTS
+
+Acme supports Controllers in fulfilling Data Subject requests for access, rectification,
+erasure, restriction, portability, and objection. Requests received directly by Acme are
+forwarded to the relevant Controller within 5 business days.
+
+9. PIPEDA COMPLIANCE (CANADA)
+
+Acme complies with the Personal Information Protection and Electronic Documents Act
+(PIPEDA). A designated Privacy Officer oversees compliance, handles complaints, and
+maintains our records of processing activities (ROPA). Contact: privacy@acmeanalytics.io
+
+10. GOVERNING LAW AND CONTACT
+
+This policy is governed by the laws of Ontario, Canada. For privacy enquiries:
+Data Protection Officer — Acme Analytics Inc.
+100 King Street West, Suite 5600, Toronto, ON M5X 1C9
+dpo@acmeanalytics.io | +1 (416) 555-0142

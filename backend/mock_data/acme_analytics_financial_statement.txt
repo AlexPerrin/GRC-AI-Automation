@@ -1,0 +1,106 @@
+ACME ANALYTICS INC. — FINANCIAL SUMMARY STATEMENT
+Fiscal Year Ended 31 December 2024
+Prepared for: Third-Party Vendor Due Diligence Review
+Confidential — Not for Distribution
+
+1. EXECUTIVE SUMMARY
+
+Acme Analytics Inc. delivered strong financial performance in FY 2024, achieving
+£12.0 million in total revenue, representing 28% year-over-year growth driven by
+expansion within the enterprise segment and international market entry. The company
+reached EBITDA profitability in Q3 2024 and recorded positive net income for the
+full year for the first time in its operating history.
+
+2. INCOME STATEMENT HIGHLIGHTS (FY 2024)
+
+  Total Revenue:                  £12,047,000
+    Subscription (ARR):           £10,821,000   (89.8% of total)
+    Professional Services:        £1,226,000    (10.2% of total)
+
+  Gross Profit:                   £8,593,000
+  Gross Margin:                   71.3%
+
+  Operating Expenses:
+    Research & Development:       £2,641,000
+    Sales & Marketing:            £3,108,000
+    General & Administrative:     £1,244,000
+  Total OpEx:                     £6,993,000
+
+  EBITDA:                         £1,600,000    (EBITDA margin: 13.3%)
+  Depreciation & Amortisation:    £247,000
+  EBIT:                           £1,353,000
+  Net Finance Costs:              £(89,000)
+  Profit Before Tax:              £1,264,000
+  Income Tax Expense:             £(316,000)
+  Net Profit After Tax:           £948,000
+
+  Comparative FY 2023:
+    Total Revenue:                £9,412,000   (growth: +28.0%)
+    Gross Margin:                 69.1%
+    EBITDA:                       £(241,000)   (pre-profitability)
+
+3. BALANCE SHEET HIGHLIGHTS (31 December 2024)
+
+  Current Assets:
+    Cash and Cash Equivalents:    £4,218,000
+    Trade Receivables (net):      £1,103,000
+    Other Current Assets:         £319,000
+  Total Current Assets:           £5,640,000
+
+  Non-Current Assets:
+    Intangible Assets (capitalised dev): £1,872,000
+    Property, Plant & Equipment:  £384,000
+    Right-of-Use Assets:          £621,000
+  Total Non-Current Assets:       £2,877,000
+
+  Total Assets:                   £8,517,000
+
+  Current Liabilities:
+    Trade Payables:               £412,000
+    Deferred Revenue (current):   £2,341,000
+    Other Current Liabilities:    £278,000
+  Total Current Liabilities:      £3,031,000
+
+  Non-Current Liabilities:
+    Long-Term Debt (revolving facility, undrawn): £0
+    Lease Liabilities (non-current): £489,000
+  Total Non-Current Liabilities:  £489,000
+
+  Total Liabilities:              £3,520,000
+  Shareholders' Equity:           £4,997,000
+  Total Liabilities & Equity:     £8,517,000
+
+4. KEY FINANCIAL RATIOS
+
+  Current Ratio:                  1.86        (healthy liquidity)
+  Quick Ratio:                    1.75        (minimal inventory dependency)
+  Debt-to-Equity Ratio:           0.10        (lease liabilities only; no financial debt)
+  Revenue Growth (YoY):           +28.0%
+  Net Revenue Retention (NRR):    118%        (strong upsell/expansion)
+  Customer Acquisition Cost (CAC) Payback: 14 months
+  Annual Recurring Revenue (ARR): £11,340,000 (as at 31 Dec 2024)
+
+5. CASH FLOW SUMMARY
+
+  Net Cash from Operating Activities:   £1,847,000
+  Net Cash used in Investing Activities: £(962,000)  (capitalised development costs)
+  Net Cash from Financing Activities:   £142,000     (lease repayments net of drawdowns)
+  Net Increase in Cash:                 £1,027,000
+  Opening Cash Balance (1 Jan 2024):    £3,191,000
+  Closing Cash Balance (31 Dec 2024):   £4,218,000
+
+  Cash Runway (at current burn rate): Not applicable — company is cash-flow positive.
+  Undrawn revolving credit facility (RCF): £3,000,000 (committed to Dec 2026, HSBC).
+
+6. AUDITOR'S NOTE
+
+These figures are extracted from the audited financial statements of Acme Analytics
+Inc. for the year ended 31 December 2024. The audit was conducted by Grant Thornton LLP
+(Toronto) in accordance with Canadian Generally Accepted Auditing Standards (GAAS).
+An unqualified (clean) opinion was issued on 14 February 2025. Full audited accounts
+are available to prospective partners upon execution of a non-disclosure agreement.
+
+7. CONTACT
+
+Chief Financial Officer: cfo@acmeanalytics.io
+Acme Analytics Inc., 100 King Street West, Suite 5600, Toronto, ON M5X 1C9, Canada
