@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getAuditLogs } from '../api/client'
-import Badge from './ui/Badge'
 
 interface AuditTrailProps {
   vendorId: number
@@ -16,6 +15,32 @@ function formatTimestamp(ts: string) {
     month: 'short',
     year: 'numeric',
   })
+}
+
+// Known acronyms that should stay fully uppercase
+const ACRONYMS = new Set(['NDA', 'AI', 'ID', 'API'])
+
+function formatEventType(eventType: string): string {
+  return eventType
+    .split('_')
+    .map(w => ACRONYMS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+function eventBadgeColor(eventType: string): string {
+  if (eventType.includes('APPROVED'))
+    return 'bg-green-100 text-green-800'
+  if (eventType.includes('REJECTED') || eventType.includes('ERROR'))
+    return 'bg-red-100 text-red-800'
+  return 'bg-gray-100 text-gray-700'
+}
+
+function EventBadge({ eventType }: { eventType: string }) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${eventBadgeColor(eventType)}`}>
+      {formatEventType(eventType)}
+    </span>
+  )
 }
 
 export default function AuditTrail({ vendorId }: AuditTrailProps) {
@@ -47,7 +72,7 @@ export default function AuditTrail({ vendorId }: AuditTrailProps) {
             <time className="text-xs text-gray-400 whitespace-nowrap">
               {formatTimestamp(log.timestamp)}
             </time>
-            <Badge label={log.event_type} />
+            <EventBadge eventType={log.event_type} />
             <span className="text-xs text-gray-600">{log.actor}</span>
           </div>
           {log.payload && (

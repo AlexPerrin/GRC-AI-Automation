@@ -4,7 +4,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import type { Document, FinancialAnalysisResult, FinancialFinding, Review, Vendor } from '../types'
-import ReviewPanel, { type EditColumn } from './ReviewPanel'
+import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
 
 interface FinancialPanelProps {
   review: Review | undefined
@@ -92,10 +92,17 @@ const editColumns: EditColumn<FinancialRow>[] = [
 ]
 
 const riskColors: Record<RiskLevel, string> = {
-  LOW: 'border-green-200 bg-green-50',
-  MEDIUM: 'border-yellow-200 bg-yellow-50',
-  HIGH: 'border-orange-200 bg-orange-50',
-  CRITICAL: 'border-red-200 bg-red-50',
+  LOW: 'bg-green-50',
+  MEDIUM: 'bg-yellow-50',
+  HIGH: 'bg-orange-50',
+  CRITICAL: 'bg-red-50',
+}
+
+const riskRatingFromScore = (score: number): string => {
+  if (score < 3) return 'low'
+  if (score < 6) return 'medium'
+  if (score < 8) return 'high'
+  return 'critical'
 }
 
 function renderViewBody(rows: FinancialRow[]): React.ReactNode {
@@ -128,35 +135,13 @@ function renderViewBody(rows: FinancialRow[]): React.ReactNode {
 function renderSummary(output: unknown): React.ReactNode {
   const o = output as FinancialAnalysisResult
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Score</span>
-          <p className="text-2xl font-bold text-gray-900">{o.overall_risk_score}/10</p>
-        </div>
-        {o.recommendation && (
-          <div className="flex-1">
-            <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
-            <p className="text-sm text-gray-800 mt-0.5">{o.recommendation}</p>
-          </div>
-        )}
-      </div>
-      {o.summary && (
-        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{o.summary}</p>
-      )}
-      {o.conditions && o.conditions.length > 0 && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
-          <ul className="space-y-1">
-            {o.conditions.map((c, i) => (
-              <li key={i} className="text-sm text-yellow-700 flex gap-1">
-                <span>•</span><span>{c}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    <AnalysisSummaryHeader
+      riskScore={`${o.overall_risk_score?.toFixed(1) ?? '—'}/10`}
+      riskRating={riskRatingFromScore(o.overall_risk_score ?? 5)}
+      recommendation={o.recommendation}
+      summary={o.summary}
+      conditions={o.conditions}
+    />
   )
 }
 

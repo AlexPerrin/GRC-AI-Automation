@@ -28,6 +28,9 @@ const variantColors: Record<string, string> = {
   high: 'bg-orange-100 text-orange-800',
   critical: 'bg-red-100 text-red-800',
   not_applicable: 'bg-gray-100 text-gray-500',
+  // Lowercase status values (security)
+  met: 'bg-green-100 text-green-800',
+  not_met: 'bg-red-100 text-red-800',
   // Uppercase variants
   MET: 'bg-green-100 text-green-800',
   APPROVE: 'bg-green-100 text-green-800',

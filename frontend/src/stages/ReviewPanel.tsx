@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import { triggerReview } from '../api/client'
 import DecisionPanel from '../components/DecisionPanel'
 import DocumentUpload from '../components/DocumentUpload'
+import Badge from '../components/ui/Badge'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 import type { Document, DocumentStage, Review } from '../types'
@@ -81,6 +82,58 @@ export interface ReviewPanelProps<TRow extends { _id: number }> {
 
   /** Renders read-only AI summary above the table (only called when COMPLETE and output exists) */
   renderSummary?(output: unknown): React.ReactNode
+}
+
+// ── Shared analysis summary header ────────────────────────────────────────────
+
+export interface AnalysisSummaryHeaderProps {
+  riskScore: string
+  riskRating: string
+  recommendation: string
+  summary?: string
+  conditions?: string[]
+}
+
+export function AnalysisSummaryHeader({
+  riskScore,
+  riskRating,
+  recommendation,
+  summary,
+  conditions,
+}: AnalysisSummaryHeaderProps) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-6 flex-wrap">
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Score</span>
+          <p className="text-2xl font-bold text-gray-900">{riskScore}</p>
+        </div>
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Rating</span>
+          <div className="mt-0.5"><Badge label={riskRating} /></div>
+        </div>
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
+          <div className="mt-0.5"><Badge label={recommendation} /></div>
+        </div>
+      </div>
+      {summary && (
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{summary}</p>
+      )}
+      {conditions && conditions.length > 0 && (
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
+          <ul className="space-y-1">
+            {conditions.map((c, i) => (
+              <li key={i} className="text-sm text-yellow-700 flex gap-1">
+                <span>•</span><span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Stable uid counter shared across all ReviewPanel instances ────────────────

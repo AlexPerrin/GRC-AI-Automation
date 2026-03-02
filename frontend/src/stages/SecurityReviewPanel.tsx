@@ -5,7 +5,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import type { ControlFinding, Document, Review, SecurityAnalysisResult, Vendor } from '../types'
-import ReviewPanel, { type EditColumn } from './ReviewPanel'
+import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
 
 interface SecurityReviewPanelProps {
   review: Review | undefined
@@ -62,21 +62,18 @@ function seedRows(output: unknown): Omit<SecurityFindingRow, '_id'>[] {
     status: f.status ?? 'partial',
     finding: f.finding ?? '',
     evidence: f.evidence ?? '',
-    risk_score: String(f.risk_score ?? 3),
+    risk_score: String(Math.round((f.risk_score ?? 3) * 2)),
   }))
 }
 
+const statusRowColors: Record<ControlStatus, string> = {
+  met: 'bg-green-50',
+  partial: 'bg-yellow-50',
+  not_met: 'bg-red-50',
+  not_applicable: '',
+}
+
 const editColumns: EditColumn<SecurityFindingRow>[] = [
-  {
-    header: 'Domain',
-    render: (row, onChange) => (
-      <input
-        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-        value={row.domain}
-        onChange={e => onChange('domain', e.target.value)}
-      />
-    ),
-  },
   {
     header: 'Framework',
     className: 'w-28',
@@ -85,6 +82,16 @@ const editColumns: EditColumn<SecurityFindingRow>[] = [
         className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
         value={row.framework}
         onChange={e => onChange('framework', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Domain',
+    render: (row, onChange) => (
+      <input
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.domain}
+        onChange={e => onChange('domain', e.target.value)}
       />
     ),
   },
@@ -138,12 +145,12 @@ const editColumns: EditColumn<SecurityFindingRow>[] = [
   },
   {
     header: 'Score',
-    className: 'w-16',
+    className: 'w-20',
     render: (row, onChange) => (
       <input
         type="number"
         min={1}
-        max={5}
+        max={10}
         className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
         value={row.risk_score}
         onChange={e => onChange('risk_score', e.target.value)}
@@ -158,8 +165,8 @@ function renderViewBody(rows: SecurityFindingRow[]): React.ReactNode {
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-            <th className="px-3 py-2">Domain</th>
             <th className="px-3 py-2">Framework</th>
+            <th className="px-3 py-2">Domain</th>
             <th className="px-3 py-2">Control</th>
             <th className="px-3 py-2">Status</th>
             <th className="px-3 py-2">Finding</th>
@@ -169,14 +176,14 @@ function renderViewBody(rows: SecurityFindingRow[]): React.ReactNode {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {rows.map(row => (
-            <tr key={row._id}>
-              <td className="px-3 py-2 font-medium text-gray-900">{row.domain}</td>
+            <tr key={row._id} className={statusRowColors[row.status] ?? ''}>
               <td className="px-3 py-2 text-gray-600">{row.framework}</td>
+              <td className="px-3 py-2 font-medium text-gray-900">{row.domain}</td>
               <td className="px-3 py-2 text-gray-600">{row.control_id}</td>
               <td className="px-3 py-2"><Badge label={row.status} /></td>
               <td className="px-3 py-2 text-gray-600 max-w-xs"><EvidenceCell text={row.finding} /></td>
               <td className="px-3 py-2 text-gray-500 max-w-xs"><EvidenceCell text={row.evidence} /></td>
-              <td className="px-3 py-2 text-center text-gray-700 font-medium">{row.risk_score}/5</td>
+              <td className="px-3 py-2 text-center text-gray-700 font-medium">{row.risk_score}/10</td>
             </tr>
           ))}
         </tbody>
@@ -187,40 +194,15 @@ function renderViewBody(rows: SecurityFindingRow[]): React.ReactNode {
 
 function renderSummary(output: unknown): React.ReactNode {
   const o = output as SecurityAnalysisResult
+  const score = o.risk_score != null ? (o.risk_score * 2).toFixed(1) : '—'
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Overall Risk</span>
-          <div className="mt-0.5"><Badge label={o.overall_risk} /></div>
-        </div>
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
-          <div className="mt-0.5"><Badge label={o.recommendation} /></div>
-        </div>
-        {o.risk_score != null && (
-          <div>
-            <span className="text-xs text-gray-500 uppercase tracking-wide">Mean Control Score</span>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5">{o.risk_score}/5</p>
-          </div>
-        )}
-      </div>
-      {o.summary && (
-        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{o.summary}</p>
-      )}
-      {o.conditions && o.conditions.length > 0 && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
-          <ul className="space-y-1">
-            {o.conditions.map((c, i) => (
-              <li key={i} className="text-sm text-yellow-700 flex gap-1">
-                <span>•</span><span>{c}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    <AnalysisSummaryHeader
+      riskScore={`${score}/10`}
+      riskRating={o.overall_risk}
+      recommendation={o.recommendation}
+      summary={o.summary}
+      conditions={o.conditions}
+    />
   )
 }
 

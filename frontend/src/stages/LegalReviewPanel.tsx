@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { startLegalReview } from '../api/client'
 import Badge from '../components/ui/Badge'
 import type { Document, LegalAnalysisResult, LegalRegulationFinding, Review } from '../types'
-import ReviewPanel, { type EditColumn } from './ReviewPanel'
+import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
 
 interface LegalReviewPanelProps {
   review: Review | undefined
@@ -114,6 +114,15 @@ const editColumns: EditColumn<LegalRow>[] = [
   },
 ]
 
+const statusRowColors: Record<LegalRegulationFinding['status'], string> = {
+  compliant: 'bg-green-50',
+  partial: 'bg-yellow-50',
+  non_compliant: 'bg-red-50',
+  not_applicable: '',
+}
+
+const riskToScore: Record<string, number> = { low: 2, medium: 5, high: 7.5, critical: 9.5 }
+
 function renderViewBody(rows: LegalRow[]): React.ReactNode {
   return (
     <div className="overflow-x-auto">
@@ -129,7 +138,7 @@ function renderViewBody(rows: LegalRow[]): React.ReactNode {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {rows.map(row => (
-            <tr key={row._id}>
+            <tr key={row._id} className={statusRowColors[row.status] ?? ''}>
               <td className="px-3 py-2 font-medium text-gray-900">{row.regulation}</td>
               <td className="px-3 py-2 text-gray-600">{row.article}</td>
               <td className="px-3 py-2"><Badge label={row.status} /></td>
@@ -145,34 +154,15 @@ function renderViewBody(rows: LegalRow[]): React.ReactNode {
 
 function renderSummary(output: unknown): React.ReactNode {
   const o = output as LegalAnalysisResult
+  const score = riskToScore[o.overall_risk] ?? 5
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-4 flex-wrap">
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Overall Risk</span>
-          <div className="mt-0.5"><Badge label={o.overall_risk} /></div>
-        </div>
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
-          <div className="mt-0.5"><Badge label={o.recommendation} /></div>
-        </div>
-      </div>
-      {o.summary && (
-        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{o.summary}</p>
-      )}
-      {o.conditions && o.conditions.length > 0 && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
-          <ul className="space-y-1">
-            {o.conditions.map((c, i) => (
-              <li key={i} className="text-sm text-yellow-700 flex gap-1">
-                <span>•</span><span>{c}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    <AnalysisSummaryHeader
+      riskScore={`${score}/10`}
+      riskRating={o.overall_risk}
+      recommendation={o.recommendation}
+      summary={o.summary}
+      conditions={o.conditions}
+    />
   )
 }
 
