@@ -42,7 +42,7 @@ export const startLegalReview = (id: number) =>
 export const startSecurityReview = (id: number) =>
   request<Review>(`/vendors/${id}/start-security-review`, { method: 'POST' })
 export const startFinancialReview = (id: number) =>
-  request<Vendor>(`/vendors/${id}/start-financial-review`, { method: 'POST' })
+  request<Review>(`/vendors/${id}/start-financial-review`, { method: 'POST' })
 export const completeOnboarding = (id: number) =>
   request<Vendor>(`/vendors/${id}/complete-onboarding`, { method: 'POST' })
 export const rejectVendor = (id: number, rationale: string) =>

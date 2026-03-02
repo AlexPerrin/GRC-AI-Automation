@@ -67,17 +67,23 @@ def confirm_nda(vendor_id: int, db: Session = Depends(get_db)):
     return WorkflowService(db).confirm_nda(vendor_id)
 
 
-@router.post("/{vendor_id}/start-financial-review", response_model=VendorRead)
+@router.post("/{vendor_id}/start-financial-review", response_model=ReviewRead)
 def start_financial_review(vendor_id: int, db: Session = Depends(get_db)):
     """Open Stage 4 Financial review for a vendor in SECURITY_APPROVED status."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
+    existing = (
+        db.query(Review)
+        .filter(Review.vendor_id == vendor_id, Review.stage == DocumentStage.FINANCIAL)
+        .first()
+    )
+    if existing:
+        return existing
     try:
-        vendor, _review = WorkflowService(db).start_financial_review(vendor_id)
+        return WorkflowService(db).start_financial_review(vendor_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    return vendor
 
 
 @router.post("/{vendor_id}/complete-onboarding", response_model=VendorRead)

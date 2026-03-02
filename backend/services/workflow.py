@@ -10,7 +10,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from core.models import AuditLog, DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
-from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
+from schemas.forms import UseCaseFormInput
+from services.financial.analyzer import FinancialAnalyzer
 from services.legal.analyzer import LegalAnalyzer
 from services.llm.client import LLMClient
 from services.rag.retriever import Retriever
@@ -412,10 +413,10 @@ class WorkflowService:
         return vendor
 
     # ------------------------------------------------------------------
-    # Stage 4 — Financial Risk Evaluation (human form)
+    # Stage 4 — Financial Risk Evaluation (AI + human decision)
     # ------------------------------------------------------------------
 
-    def start_financial_review(self, vendor_id: int) -> tuple:
+    def start_financial_review(self, vendor_id: int) -> Review:
         """Open Stage 4 review for a vendor in SECURITY_APPROVED status."""
         db = self.db
 
@@ -430,7 +431,7 @@ class WorkflowService:
         review = Review(
             vendor_id=vendor_id,
             stage=DocumentStage.FINANCIAL,
-            review_type=ReviewType.HUMAN_FORM,
+            review_type=ReviewType.AI_ANALYSIS,
             status=ReviewStatus.PENDING,
         )
         db.add(review)
@@ -448,32 +449,98 @@ class WorkflowService:
         )
         db.commit()
 
-        db.refresh(vendor)
-        return (vendor, review)
+        return review
 
-    def submit_financial_form(self, review_id: int, form: FinancialRiskFormInput) -> Review:
-        """Validate and store Stage 4 form; advance workflow on ACCEPTABLE."""
+    async def trigger_financial_review(self, review_id: int, doc_id: int) -> Review:
+        """Kick off RAG-powered financial analysis and persist the result."""
         db = self.db
 
         review = db.query(Review).filter(Review.id == review_id).first()
         if not review:
             raise ValueError(f"Review {review_id} not found")
 
-        review.form_input = form.model_dump()
-        review.status = ReviewStatus.COMPLETE
-        review.completed_at = datetime.utcnow()
+        review.status = ReviewStatus.IN_PROGRESS
         db.commit()
 
+        analyzer = FinancialAnalyzer(
+            llm=LLMClient(),
+            retriever=Retriever(store=VectorStore()),
+        )
+
+        try:
+            result = await analyzer.analyze(review.vendor_id, doc_id)
+            review.ai_output = result.to_dict()
+            review.status = ReviewStatus.COMPLETE
+            review.completed_at = datetime.utcnow()
+            db.commit()
+
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="FINANCIAL_REVIEW_COMPLETE",
+                actor="system",
+                payload={
+                    "review_id": review_id,
+                    "doc_id": doc_id,
+                    "overall_risk_score": result.overall_risk_score,
+                    "recommendation": result.recommendation,
+                },
+            )
+            db.commit()
+
+        except Exception as exc:
+            logger.error(
+                "Financial review failed for review_id=%s doc_id=%s: %s",
+                review_id,
+                doc_id,
+                exc,
+            )
+            review.status = ReviewStatus.ERROR
+            review.completed_at = datetime.utcnow()
+            db.commit()
+
+            self._log(
+                vendor_id=review.vendor_id,
+                event_type="FINANCIAL_REVIEW_ERROR",
+                actor="system",
+                payload={
+                    "review_id": review_id,
+                    "doc_id": doc_id,
+                    "error": str(exc),
+                },
+            )
+            db.commit()
+
+        db.refresh(review)
+        return review
+
+    def submit_financial_decision(
+        self,
+        review_id: int,
+        action: str,
+        rationale: str,
+        conditions: list | None = None,
+        actor: str = "system",
+    ) -> Vendor:
+        """Record human decision on Stage 4 output; advance workflow state."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+        if review.status != ReviewStatus.COMPLETE:
+            raise ValueError("Review must be COMPLETE before a decision can be recorded")
+
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
-        if form.recommendation in ("ACCEPTABLE", "ACCEPTABLE_WITH_CONDITIONS"):
+        if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
             vendor.status = VendorStatus.FINANCIAL_APPROVED
             self._log(
                 vendor_id=review.vendor_id,
-                event_type="FINANCIAL_APPROVED",
-                actor=form.reviewer_name,
+                event_type="FINANCIAL_DECISION_APPROVED",
+                actor=actor,
                 payload={
                     "review_id": review_id,
-                    "conditions": form.conditions or [],
+                    "action": action,
+                    "conditions": conditions or [],
                 },
             )
         else:
@@ -481,17 +548,18 @@ class WorkflowService:
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="VENDOR_REJECTED",
-                actor=form.reviewer_name,
+                actor=actor,
                 payload={
                     "review_id": review_id,
                     "stage": "FINANCIAL",
-                    "rationale": form.notes,
+                    "action": action,
+                    "rationale": rationale,
                 },
             )
         db.commit()
 
-        db.refresh(review)
-        return review
+        db.refresh(vendor)
+        return vendor
 
     # ------------------------------------------------------------------
     # Final disposition

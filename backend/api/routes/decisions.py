@@ -55,6 +55,14 @@ def create_decision(
                 conditions=payload.conditions,
                 actor=payload.actor,
             )
+        elif review.stage == DocumentStage.FINANCIAL:
+            svc.submit_financial_decision(
+                review_id=review_id,
+                action=payload.action.value,
+                rationale=payload.rationale,
+                conditions=payload.conditions,
+                actor=payload.actor,
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

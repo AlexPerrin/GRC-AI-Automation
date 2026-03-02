@@ -1,19 +1,27 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { startLegalReview, triggerReview } from '../api/client'
-import DecisionPanel from '../components/DecisionPanel'
-import DocumentUpload from '../components/DocumentUpload'
+import { startLegalReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
-import Spinner from '../components/ui/Spinner'
 import type { Document, LegalAnalysisResult, LegalRegulationFinding, Review } from '../types'
+import ReviewPanel, { type EditColumn } from './ReviewPanel'
 
 interface LegalReviewPanelProps {
   review: Review | undefined
   documents: Document[]
   vendorId: number
 }
+
+// ── Row type ──────────────────────────────────────────────────────────────────
+
+interface LegalRow {
+  _id: number
+  regulation: string
+  article: string
+  status: LegalRegulationFinding['status']
+  finding: string
+  evidence: string
+}
+
+// ── EvidenceCell (expand/collapse long text) ──────────────────────────────────
 
 function EvidenceCell({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -22,7 +30,7 @@ function EvidenceCell({ text }: { text: string }) {
     <span>
       {expanded ? text : `${text.slice(0, 120)}…`}
       <button
-        onClick={() => setExpanded((e) => !e)}
+        onClick={() => setExpanded(e => !e)}
         className="ml-1 text-blue-500 hover:underline text-xs"
       >
         {expanded ? 'less' : 'more'}
@@ -31,174 +39,160 @@ function EvidenceCell({ text }: { text: string }) {
   )
 }
 
-export default function LegalReviewPanel({ review, documents, vendorId }: LegalReviewPanelProps) {
-  const queryClient = useQueryClient()
+// ── Static config (module-level = stable references, no re-render churn) ─────
 
-  const triggerMutation = useMutation({
-    mutationFn: (docId: number) => triggerReview(review!.id, docId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reviews', String(vendorId)] })
-    },
-  })
+const STATUS_OPTIONS: LegalRegulationFinding['status'][] = [
+  'compliant', 'partial', 'non_compliant', 'not_applicable',
+]
 
-  // When no review exists yet: create it then immediately trigger analysis
-  const analyzeMutation = useMutation({
-    mutationFn: async (docId: number) => {
-      const created = await startLegalReview(vendorId)
-      return triggerReview(created.id, docId)
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['reviews', String(vendorId)] })
-    },
-  })
+function emptyRow(): Omit<LegalRow, '_id'> {
+  return { regulation: '', article: '', status: 'compliant', finding: '', evidence: '' }
+}
 
-  const hasDecision = (review?.status === 'COMPLETE') // decisions checked via review's parent
+function seedRows(output: unknown): Omit<LegalRow, '_id'>[] {
+  return (output as LegalAnalysisResult).regulation_findings.map(f => ({ ...f }))
+}
 
+const editColumns: EditColumn<LegalRow>[] = [
+  {
+    header: 'Regulation',
+    render: (row, onChange) => (
+      <input
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.regulation}
+        onChange={e => onChange('regulation', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Article',
+    className: 'w-24',
+    render: (row, onChange) => (
+      <input
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.article}
+        onChange={e => onChange('article', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Status',
+    className: 'w-40',
+    render: (row, onChange) => (
+      <select
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.status}
+        onChange={e => onChange('status', e.target.value)}
+      >
+        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    ),
+  },
+  {
+    header: 'Finding',
+    className: 'max-w-xs',
+    render: (row, onChange) => (
+      <textarea
+        rows={2}
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+        value={row.finding}
+        onChange={e => onChange('finding', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Evidence',
+    className: 'max-w-xs',
+    render: (row, onChange) => (
+      <textarea
+        rows={2}
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+        value={row.evidence}
+        onChange={e => onChange('evidence', e.target.value)}
+      />
+    ),
+  },
+]
+
+function renderViewBody(rows: LegalRow[]): React.ReactNode {
   return (
-    <div className="space-y-6">
-      {/* Document Upload */}
-      <Card>
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Legal Documents</h3>
-        <DocumentUpload
-          vendorId={vendorId}
-          stage="LEGAL"
-          docType="privacy_policy"
-          documents={documents}
-        />
-      </Card>
-
-      {/* Analysis Section */}
-      <Card>
-        <h3 className="text-base font-semibold text-gray-900 mb-4">AI Legal Analysis</h3>
-
-        {!review && (
-          <div className="space-y-3">
-            {documents.length === 0 ? (
-              <p className="text-sm text-gray-500">Upload a legal document above to begin analysis.</p>
-            ) : (
-              <>
-                {analyzeMutation.isError && (
-                  <p className="text-sm text-red-600">{(analyzeMutation.error as Error).message}</p>
-                )}
-                <Button
-                  onClick={() => {
-                    const doc = documents[0]
-                    if (doc) analyzeMutation.mutate(doc.id)
-                  }}
-                  disabled={analyzeMutation.isPending}
-                >
-                  {analyzeMutation.isPending ? 'Starting…' : 'Analyze'}
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-
-        {review && review.status === 'PENDING' && (
-          <Button
-            onClick={() => {
-              const doc = documents[0]
-              if (doc) triggerMutation.mutate(doc.id)
-            }}
-            disabled={documents.length === 0 || triggerMutation.isPending}
-          >
-            {triggerMutation.isPending ? 'Starting…' : 'Run AI Analysis'}
-          </Button>
-        )}
-
-        {review?.status === 'IN_PROGRESS' && (
-          <div className="flex items-center gap-2 text-gray-600">
-            <Spinner />
-            <span className="text-sm">Analysis in progress…</span>
-          </div>
-        )}
-
-        {review?.status === 'ERROR' && (
-          <div className="rounded-md bg-red-50 border border-red-200 p-3">
-            <p className="text-sm text-red-700">Analysis failed. Please try again.</p>
-            <Button
-              variant="danger"
-              className="mt-2"
-              onClick={() => {
-                const doc = documents[0]
-                if (doc) triggerMutation.mutate(doc.id)
-              }}
-              disabled={documents.length === 0}
-            >
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {review?.status === 'COMPLETE' && review.ai_output && (() => {
-          const output = review.ai_output as LegalAnalysisResult
-          return (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Overall Risk</span>
-                  <div className="mt-0.5"><Badge label={output.overall_risk} /></div>
-                </div>
-                <div>
-                  <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
-                  <div className="mt-0.5"><Badge label={output.recommendation} /></div>
-                </div>
-              </div>
-              {output.summary && (
-                <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{output.summary}</p>
-              )}
-              {output.conditions && output.conditions.length > 0 && (
-                <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-                  <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
-                  <ul className="space-y-1">
-                    {output.conditions.map((c, i) => (
-                      <li key={i} className="text-sm text-yellow-700 flex gap-1">
-                        <span>•</span><span>{c}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      <th className="px-3 py-2">Regulation</th>
-                      <th className="px-3 py-2">Article</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Finding</th>
-                      <th className="px-3 py-2">Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {output.regulation_findings.map((f: LegalRegulationFinding, i: number) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 font-medium text-gray-900">{f.regulation}</td>
-                        <td className="px-3 py-2 text-gray-600">{f.article}</td>
-                        <td className="px-3 py-2">
-                          <Badge label={f.status} />
-                        </td>
-                        <td className="px-3 py-2 text-gray-600 max-w-xs">
-                          <EvidenceCell text={f.finding} />
-                        </td>
-                        <td className="px-3 py-2 text-gray-500 max-w-xs">
-                          <EvidenceCell text={f.evidence} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )
-        })()}
-
-        {review?.status === 'COMPLETE' && !hasDecision && (
-          <div className="mt-6">
-            <DecisionPanel reviewId={review.id} vendorId={vendorId} />
-          </div>
-        )}
-      </Card>
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <th className="px-3 py-2">Regulation</th>
+            <th className="px-3 py-2">Article</th>
+            <th className="px-3 py-2">Status</th>
+            <th className="px-3 py-2">Finding</th>
+            <th className="px-3 py-2">Evidence</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map(row => (
+            <tr key={row._id}>
+              <td className="px-3 py-2 font-medium text-gray-900">{row.regulation}</td>
+              <td className="px-3 py-2 text-gray-600">{row.article}</td>
+              <td className="px-3 py-2"><Badge label={row.status} /></td>
+              <td className="px-3 py-2 text-gray-600 max-w-xs"><EvidenceCell text={row.finding} /></td>
+              <td className="px-3 py-2 text-gray-500 max-w-xs"><EvidenceCell text={row.evidence} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
+  )
+}
+
+function renderSummary(output: unknown): React.ReactNode {
+  const o = output as LegalAnalysisResult
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Overall Risk</span>
+          <div className="mt-0.5"><Badge label={o.overall_risk} /></div>
+        </div>
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
+          <div className="mt-0.5"><Badge label={o.recommendation} /></div>
+        </div>
+      </div>
+      {o.summary && (
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{o.summary}</p>
+      )}
+      {o.conditions && o.conditions.length > 0 && (
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
+          <ul className="space-y-1">
+            {o.conditions.map((c, i) => (
+              <li key={i} className="text-sm text-yellow-700 flex gap-1">
+                <span>•</span><span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function LegalReviewPanel({ review, documents, vendorId }: LegalReviewPanelProps) {
+  return (
+    <ReviewPanel<LegalRow>
+      review={review}
+      documents={documents}
+      vendorId={vendorId}
+      stage="LEGAL"
+      docType="privacy_policy"
+      title="Legal Analysis"
+      startReview={startLegalReview}
+      emptyRow={emptyRow}
+      seedRows={seedRows}
+      editColumns={editColumns}
+      renderViewBody={renderViewBody}
+      renderSummary={renderSummary}
+    />
   )
 }

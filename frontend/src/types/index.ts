@@ -32,7 +32,7 @@ export interface Review {
   stage: DocumentStage
   review_type: ReviewType
   status: ReviewStatus
-  ai_output: LegalAnalysisResult | SecurityAnalysisResult | null
+  ai_output: LegalAnalysisResult | SecurityAnalysisResult | FinancialAnalysisResult | null
   form_input: Record<string, unknown> | null
   triggered_at: string
   completed_at: string | null
@@ -84,18 +84,39 @@ export interface LegalAnalysisResult {
   conditions: string[]
 }
 
-export interface SecurityDomain {
+export interface ControlFinding {
   domain: string
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  findings: string[]
-  evidence: string[]
+  framework: string
+  control_id: string
+  status: 'met' | 'partial' | 'not_met' | 'not_applicable'
+  finding: string
+  evidence: string
+  risk_score: number
 }
 
 export interface SecurityAnalysisResult {
+  control_findings: ControlFinding[]
+  overall_risk: 'low' | 'medium' | 'high' | 'critical'
+  recommendation: 'approve' | 'approve_with_conditions' | 'reject'
+  summary: string
+  conditions: string[]
+  risk_score: number
+}
+
+// AI output shapes — Financial
+export interface FinancialFinding {
+  category: string
+  value: string
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  notes: string
+}
+
+export interface FinancialAnalysisResult {
+  findings: FinancialFinding[]
   overall_risk_score: number
-  domains: SecurityDomain[]
-  critical_gaps: string[]
-  recommendation: string
+  recommendation: 'approve' | 'approve_with_conditions' | 'reject'
+  summary: string
+  conditions: string[]
 }
 
 // Form input types

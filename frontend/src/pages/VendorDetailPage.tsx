@@ -127,7 +127,11 @@ export default function VendorDetailPage() {
             />
           )}
           {activeTab === 'financial' && (
-            <FinancialPanel review={reviewFor('FINANCIAL')} vendor={vendor} />
+            <FinancialPanel
+              review={reviewFor('FINANCIAL')}
+              documents={docsFor('FINANCIAL')}
+              vendor={vendor}
+            />
           )}
           {activeTab === 'audit' && <AuditTrail vendorId={vendor.id} />}
         </div>

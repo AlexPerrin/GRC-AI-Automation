@@ -69,9 +69,9 @@ export default function Badge({ label, className = '' }: BadgeProps) {
     'bg-gray-100 text-gray-700'
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${color} ${className}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${color} ${className}`}
     >
-      {label.replace(/_/g, ' ')}
+      {label.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
     </span>
   )
 }

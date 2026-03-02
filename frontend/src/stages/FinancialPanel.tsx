@@ -1,41 +1,199 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { completeOnboarding, startFinancialReview, submitForm } from '../api/client'
+import { completeOnboarding, startFinancialReview } from '../api/client'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import Spinner from '../components/ui/Spinner'
-import type { FinancialRiskFormInput, Review, Vendor } from '../types'
-
-const FIN_DOCS = [
-  'Financial Statements',
-  'Credit Report',
-  'Insurance Certificates',
-  'Audited Accounts',
-  'Bank References',
-]
-
-const EMPTY_FORM: FinancialRiskFormInput = {
-  vendor_annual_revenue: '',
-  years_in_operation: undefined,
-  financial_documents_reviewed: [],
-  concentration_risk_flag: false,
-  financial_stability_assessment: 'STABLE',
-  contract_value: '',
-  reviewer_name: '',
-  recommendation: 'ACCEPTABLE',
-  conditions: [],
-  notes: '',
-}
+import type { Document, FinancialAnalysisResult, FinancialFinding, Review, Vendor } from '../types'
+import ReviewPanel, { type EditColumn } from './ReviewPanel'
 
 interface FinancialPanelProps {
   review: Review | undefined
+  documents: Document[]
   vendor: Vendor
 }
 
-export default function FinancialPanel({ review, vendor }: FinancialPanelProps) {
+// ── Row type ──────────────────────────────────────────────────────────────────
+
+type RiskLevel = FinancialFinding['risk_level']
+
+interface FinancialRow {
+  _id: number
+  category: string
+  value: string
+  risk_level: RiskLevel
+  notes: string
+}
+
+// ── Static config ─────────────────────────────────────────────────────────────
+
+const RISK_LEVELS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+
+function emptyRow(): Omit<FinancialRow, '_id'> {
+  return { category: '', value: '', risk_level: 'LOW', notes: '' }
+}
+
+function seedRows(output: unknown): Omit<FinancialRow, '_id'>[] {
+  return (output as FinancialAnalysisResult).findings.map(f => ({
+    category: f.category,
+    value: f.value,
+    risk_level: f.risk_level,
+    notes: f.notes,
+  }))
+}
+
+const editColumns: EditColumn<FinancialRow>[] = [
+  {
+    header: 'Category',
+    className: 'w-36',
+    render: (row, onChange) => (
+      <input
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.category}
+        onChange={e => onChange('category', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Value',
+    className: 'w-32',
+    render: (row, onChange) => (
+      <input
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.value}
+        onChange={e => onChange('value', e.target.value)}
+      />
+    ),
+  },
+  {
+    header: 'Risk Level',
+    className: 'w-32',
+    render: (row, onChange) => (
+      <select
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        value={row.risk_level}
+        onChange={e => onChange('risk_level', e.target.value)}
+      >
+        {RISK_LEVELS.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+    ),
+  },
+  {
+    header: 'Notes',
+    className: 'max-w-sm',
+    render: (row, onChange) => (
+      <textarea
+        rows={2}
+        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+        value={row.notes}
+        onChange={e => onChange('notes', e.target.value)}
+      />
+    ),
+  },
+]
+
+const riskColors: Record<RiskLevel, string> = {
+  LOW: 'border-green-200 bg-green-50',
+  MEDIUM: 'border-yellow-200 bg-yellow-50',
+  HIGH: 'border-orange-200 bg-orange-50',
+  CRITICAL: 'border-red-200 bg-red-50',
+}
+
+function renderViewBody(rows: FinancialRow[]): React.ReactNode {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+            <th className="px-3 py-2">Category</th>
+            <th className="px-3 py-2">Value</th>
+            <th className="px-3 py-2">Risk Level</th>
+            <th className="px-3 py-2">Notes</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {rows.map(row => (
+            <tr key={row._id} className={riskColors[row.risk_level] ?? ''}>
+              <td className="px-3 py-2 font-medium text-gray-900">{row.category}</td>
+              <td className="px-3 py-2 text-gray-600">{row.value}</td>
+              <td className="px-3 py-2"><Badge label={row.risk_level} /></td>
+              <td className="px-3 py-2 text-gray-600 max-w-sm">{row.notes}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function renderSummary(output: unknown): React.ReactNode {
+  const o = output as FinancialAnalysisResult
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Score</span>
+          <p className="text-2xl font-bold text-gray-900">{o.overall_risk_score}/10</p>
+        </div>
+        {o.recommendation && (
+          <div className="flex-1">
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
+            <p className="text-sm text-gray-800 mt-0.5">{o.recommendation}</p>
+          </div>
+        )}
+      </div>
+      {o.summary && (
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{o.summary}</p>
+      )}
+      {o.conditions && o.conditions.length > 0 && (
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
+          <ul className="space-y-1">
+            {o.conditions.map((c, i) => (
+              <li key={i} className="text-sm text-yellow-700 flex gap-1">
+                <span>•</span><span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Complete Onboarding card ───────────────────────────────────────────────────
+
+function CompleteOnboardingCard({ vendor }: { vendor: Vendor }) {
   const queryClient = useQueryClient()
-  const [form, setForm] = useState<FinancialRiskFormInput>(EMPTY_FORM)
+  const mutation = useMutation({
+    mutationFn: () => completeOnboarding(vendor.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
+      void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
+    },
+  })
+
+  if (vendor.status !== 'FINANCIAL_APPROVED') return null
+
+  return (
+    <Card>
+      <h3 className="text-base font-semibold text-gray-900 mb-3">Complete Onboarding</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Financial review has been approved. Complete onboarding to finalise vendor status.
+      </p>
+      {mutation.isError && (
+        <p className="text-sm text-red-600 mb-2">{(mutation.error as Error).message}</p>
+      )}
+      <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        {mutation.isPending ? 'Completing…' : 'Complete Onboarding'}
+      </Button>
+    </Card>
+  )
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function FinancialPanel({ review, documents, vendor }: FinancialPanelProps) {
+  const queryClient = useQueryClient()
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['reviews', String(vendor.id)] })
@@ -43,55 +201,7 @@ export default function FinancialPanel({ review, vendor }: FinancialPanelProps) 
     void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
   }
 
-  const startMutation = useMutation({
-    mutationFn: () => startFinancialReview(vendor.id),
-    onSuccess: invalidate,
-  })
-
-  const submitMutation = useMutation({
-    mutationFn: (data: FinancialRiskFormInput) => submitForm(review!.id, data),
-    onSuccess: invalidate,
-  })
-
-  const completeMutation = useMutation({
-    mutationFn: () => completeOnboarding(vendor.id),
-    onSuccess: invalidate,
-  })
-
-  const toggleDoc = (doc: string) => {
-    setForm((f) => ({
-      ...f,
-      financial_documents_reviewed: f.financial_documents_reviewed.includes(doc)
-        ? f.financial_documents_reviewed.filter((d) => d !== doc)
-        : [...f.financial_documents_reviewed, doc],
-    }))
-  }
-
-  const addCondition = () => setForm((f) => ({ ...f, conditions: [...(f.conditions ?? []), ''] }))
-  const removeCondition = (i: number) =>
-    setForm((f) => ({ ...f, conditions: (f.conditions ?? []).filter((_, idx) => idx !== i) }))
-  const updateCondition = (i: number, val: string) =>
-    setForm((f) => ({
-      ...f,
-      conditions: (f.conditions ?? []).map((v, idx) => (idx === i ? val : v)),
-    }))
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const payload = {
-      ...form,
-      vendor_annual_revenue: form.vendor_annual_revenue || undefined,
-      contract_value: form.contract_value || undefined,
-      notes: form.notes || undefined,
-      conditions:
-        form.recommendation === 'ACCEPTABLE_WITH_CONDITIONS'
-          ? form.conditions?.filter(Boolean)
-          : undefined,
-    }
-    submitMutation.mutate(payload)
-  }
-
-  // Not yet eligible
+  // Gate: not yet eligible
   if (
     ['INTAKE', 'USE_CASE_REVIEW', 'USE_CASE_APPROVED', 'LEGAL_REVIEW', 'LEGAL_APPROVED',
       'NDA_PENDING', 'SECURITY_REVIEW'].includes(vendor.status)
@@ -105,268 +215,30 @@ export default function FinancialPanel({ review, vendor }: FinancialPanelProps) 
     )
   }
 
-  // Show "Start" button
-  if (vendor.status === 'SECURITY_APPROVED' && !review) {
-    return (
-      <Card>
-        <h3 className="text-base font-semibold text-gray-900 mb-3">Financial Risk Review</h3>
-        {startMutation.isError && (
-          <p className="text-sm text-red-600 mb-2">{(startMutation.error as Error).message}</p>
-        )}
-        <Button onClick={() => startMutation.mutate()} disabled={startMutation.isPending}>
-          {startMutation.isPending ? 'Starting…' : 'Start Financial Review'}
-        </Button>
-      </Card>
-    )
-  }
-
-  // Spinner
-  if (review?.status === 'IN_PROGRESS') {
-    return (
-      <Card>
-        <div className="flex items-center gap-2 text-gray-600">
-          <Spinner />
-          <span className="text-sm">Processing…</span>
-        </div>
-      </Card>
-    )
-  }
-
-  // Complete — read-only
-  if (review?.status === 'COMPLETE' && review.form_input) {
-    const fi = review.form_input as Record<string, unknown>
-    return (
-      <Card>
-        <h3 className="text-base font-semibold text-gray-900 mb-4">
-          Financial Risk Review — Complete
-        </h3>
-        <dl className="space-y-3 mb-6">
-          {Object.entries(fi).map(([key, val]) => (
-            <div key={key}>
-              <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                {key.replace(/_/g, ' ')}
-              </dt>
-              <dd className="mt-0.5 text-sm text-gray-900">
-                {key === 'recommendation' || key === 'financial_stability_assessment' ? (
-                  <Badge label={String(val)} />
-                ) : Array.isArray(val) ? (
-                  val.join(', ') || '—'
-                ) : typeof val === 'boolean' ? (
-                  val ? 'Yes' : 'No'
-                ) : val !== null && val !== undefined && val !== '' ? (
-                  String(val)
-                ) : (
-                  '—'
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        {vendor.status === 'FINANCIAL_APPROVED' && (
-          <div className="border-t border-gray-200 pt-4">
-            {completeMutation.isError && (
-              <p className="text-sm text-red-600 mb-2">
-                {(completeMutation.error as Error).message}
-              </p>
-            )}
-            <Button
-              onClick={() => completeMutation.mutate()}
-              disabled={completeMutation.isPending}
-            >
-              {completeMutation.isPending ? 'Completing…' : 'Complete Onboarding'}
-            </Button>
-          </div>
-        )}
-      </Card>
-    )
-  }
-
-  // PENDING form
-  if (!review) {
-    return (
-      <Card>
-        <p className="text-sm text-gray-500">No financial review available yet.</p>
-      </Card>
-    )
+  // Gate: start review (idempotent — startFinancialReview returns existing if present)
+  const startReview = async (vendorId: number) => {
+    const r = await startFinancialReview(vendorId)
+    invalidate()
+    return r
   }
 
   return (
-    <Card>
-      <h3 className="text-base font-semibold text-gray-900 mb-6">Financial Risk Assessment Form</h3>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Annual Revenue (optional)
-            </label>
-            <input
-              type="text"
-              value={form.vendor_annual_revenue ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, vendor_annual_revenue: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. $10M"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Years in Operation (optional)
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={form.years_in_operation ?? ''}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  years_in_operation: e.target.value ? Number(e.target.value) : undefined,
-                }))
-              }
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">
-            Financial Documents Reviewed
-          </span>
-          <div className="flex flex-wrap gap-3">
-            {FIN_DOCS.map((doc) => (
-              <label key={doc} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.financial_documents_reviewed.includes(doc)}
-                  onChange={() => toggleDoc(doc)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                {doc}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.concentration_risk_flag}
-              onChange={(e) => setForm((f) => ({ ...f, concentration_risk_flag: e.target.checked }))}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            Concentration risk flagged
-          </label>
-        </div>
-
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">
-            Financial Stability Assessment
-          </span>
-          <div className="flex gap-4">
-            {(['STABLE', 'CONCERN', 'HIGH_RISK'] as const).map((opt) => (
-              <label key={opt} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="stability"
-                  value={opt}
-                  checked={form.financial_stability_assessment === opt}
-                  onChange={() =>
-                    setForm((f) => ({ ...f, financial_stability_assessment: opt }))
-                  }
-                  className="text-blue-600 focus:ring-blue-500"
-                />
-                {opt.replace(/_/g, ' ')}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contract Value (optional)
-            </label>
-            <input
-              type="text"
-              value={form.contract_value ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, contract_value: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. $50,000/yr"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reviewer Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.reviewer_name}
-              onChange={(e) => setForm((f) => ({ ...f, reviewer_name: e.target.value }))}
-              required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">Recommendation</span>
-          <div className="flex flex-wrap gap-4">
-            {(['ACCEPTABLE', 'ACCEPTABLE_WITH_CONDITIONS', 'UNACCEPTABLE'] as const).map((opt) => (
-              <label key={opt} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input
-                  type="radio"
-                  name="rec"
-                  value={opt}
-                  checked={form.recommendation === opt}
-                  onChange={() => setForm((f) => ({ ...f, recommendation: opt }))}
-                  className="text-blue-600 focus:ring-blue-500"
-                />
-                {opt.replace(/_/g, ' ')}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {form.recommendation === 'ACCEPTABLE_WITH_CONDITIONS' && (
-          <div className="space-y-2">
-            <span className="block text-sm font-medium text-gray-700">Conditions</span>
-            {(form.conditions ?? []).map((c, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  type="text"
-                  value={c}
-                  onChange={(e) => updateCondition(i, e.target.value)}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder={`Condition ${i + 1}`}
-                />
-                <Button variant="ghost" onClick={() => removeCondition(i)} className="px-2 py-1">
-                  ×
-                </Button>
-              </div>
-            ))}
-            <Button variant="ghost" onClick={addCondition} className="text-xs">
-              + Add condition
-            </Button>
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
-          <textarea
-            value={form.notes ?? ''}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            rows={2}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-
-        {submitMutation.isError && (
-          <p className="text-sm text-red-600">{(submitMutation.error as Error).message}</p>
-        )}
-
-        <Button type="submit" disabled={submitMutation.isPending}>
-          {submitMutation.isPending ? 'Submitting…' : 'Submit Financial Assessment'}
-        </Button>
-      </form>
-    </Card>
+    <div className="space-y-6">
+      <ReviewPanel<FinancialRow>
+        review={review}
+        documents={documents}
+        vendorId={vendor.id}
+        stage="FINANCIAL"
+        docType="financial_statement"
+        title="Financial Analysis"
+        startReview={startReview}
+        emptyRow={emptyRow}
+        seedRows={seedRows}
+        editColumns={editColumns}
+        renderViewBody={renderViewBody}
+        renderSummary={renderSummary}
+      />
+      <CompleteOnboardingCard vendor={vendor} />
+    </div>
   )
 }
