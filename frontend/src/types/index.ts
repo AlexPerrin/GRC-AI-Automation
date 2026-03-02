@@ -23,6 +23,7 @@ export interface Vendor {
   website: string | null
   description: string | null
   status: VendorStatus
+  nda_confirmed: boolean
   created_at: string
 }
 

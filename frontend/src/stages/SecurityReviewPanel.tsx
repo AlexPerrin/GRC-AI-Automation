@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { startSecurityReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import Card from '../components/ui/Card'
 import type { ControlFinding, Document, Review, SecurityAnalysisResult, Vendor } from '../types'
-import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
+import ReviewPanel, { type EditColumn, type SummaryFields } from './ReviewPanel'
 
 interface SecurityReviewPanelProps {
   review: Review | undefined
@@ -157,6 +156,18 @@ const editColumns: EditColumn<SecurityFindingRow>[] = [
   },
 ]
 
+function extractSummary(output: unknown): SummaryFields {
+  const o = output as SecurityAnalysisResult
+  const score = o.risk_score != null ? (o.risk_score * 2) : 0
+  return {
+    riskScore: score.toFixed(1),
+    riskRating: o.overall_risk ?? '',
+    recommendation: o.recommendation ?? '',
+    summary: o.summary,
+    conditions: o.conditions,
+  }
+}
+
 function renderViewBody(rows: SecurityFindingRow[]): React.ReactNode {
   return (
     <div className="overflow-x-auto">
@@ -190,31 +201,9 @@ function renderViewBody(rows: SecurityFindingRow[]): React.ReactNode {
   )
 }
 
-function renderSummary(output: unknown): React.ReactNode {
-  const o = output as SecurityAnalysisResult
-  const score = o.risk_score != null ? (o.risk_score * 2).toFixed(1) : '—'
-  return (
-    <AnalysisSummaryHeader
-      riskScore={`${score}/10`}
-      riskRating={o.overall_risk}
-      recommendation={o.recommendation}
-      summary={o.summary}
-      conditions={o.conditions}
-    />
-  )
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function SecurityReviewPanel({ review, documents, vendor }: SecurityReviewPanelProps) {
-  if (['INTAKE', 'USE_CASE_REVIEW', 'USE_CASE_APPROVED', 'NDA_PENDING', 'LEGAL_REVIEW'].includes(vendor.status)) {
-    return (
-      <Card>
-        <p className="text-sm text-gray-500">Security review will be available after legal approval.</p>
-      </Card>
-    )
-  }
-
   return (
     <ReviewPanel<SecurityFindingRow>
       review={review}
@@ -228,7 +217,7 @@ export default function SecurityReviewPanel({ review, documents, vendor }: Secur
       seedRows={seedRows}
       editColumns={editColumns}
       renderViewBody={renderViewBody}
-      renderSummary={renderSummary}
+      extractSummary={extractSummary}
     />
   )
 }

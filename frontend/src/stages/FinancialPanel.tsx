@@ -1,9 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { startFinancialReview } from '../api/client'
 import Badge from '../components/ui/Badge'
-import Card from '../components/ui/Card'
 import type { Document, FinancialAnalysisResult, FinancialFinding, Review, Vendor } from '../types'
-import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
+import ReviewPanel, { type EditColumn, type SummaryFields } from './ReviewPanel'
 
 interface FinancialPanelProps {
   review: Review | undefined
@@ -104,6 +103,18 @@ const riskRatingFromScore = (score: number): string => {
   return 'critical'
 }
 
+function extractSummary(output: unknown): SummaryFields {
+  const o = output as FinancialAnalysisResult
+  const score = o.overall_risk_score ?? 0
+  return {
+    riskScore: score.toFixed(1),
+    riskRating: riskRatingFromScore(score),
+    recommendation: o.recommendation ?? '',
+    summary: o.summary,
+    conditions: o.conditions,
+  }
+}
+
 function renderViewBody(rows: FinancialRow[]): React.ReactNode {
   return (
     <div className="overflow-x-auto">
@@ -131,19 +142,6 @@ function renderViewBody(rows: FinancialRow[]): React.ReactNode {
   )
 }
 
-function renderSummary(output: unknown): React.ReactNode {
-  const o = output as FinancialAnalysisResult
-  return (
-    <AnalysisSummaryHeader
-      riskScore={`${o.overall_risk_score?.toFixed(1) ?? '—'}/10`}
-      riskRating={riskRatingFromScore(o.overall_risk_score ?? 5)}
-      recommendation={o.recommendation}
-      summary={o.summary}
-      conditions={o.conditions}
-    />
-  )
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function FinancialPanel({ review, documents, vendor }: FinancialPanelProps) {
@@ -155,21 +153,7 @@ export default function FinancialPanel({ review, documents, vendor }: FinancialP
     void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
   }
 
-  // Gate: not yet eligible
-  if (
-    ['INTAKE', 'USE_CASE_REVIEW', 'USE_CASE_APPROVED', 'LEGAL_REVIEW', 'LEGAL_APPROVED',
-      'NDA_PENDING', 'SECURITY_REVIEW'].includes(vendor.status)
-  ) {
-    return (
-      <Card>
-        <p className="text-sm text-gray-500">
-          Financial review becomes available after security approval.
-        </p>
-      </Card>
-    )
-  }
-
-  // Gate: start review (idempotent — startFinancialReview returns existing if present)
+  // startFinancialReview is idempotent — returns existing review if present
   const startReview = async (vendorId: number) => {
     const r = await startFinancialReview(vendorId)
     invalidate()
@@ -189,7 +173,7 @@ export default function FinancialPanel({ review, documents, vendor }: FinancialP
       seedRows={seedRows}
       editColumns={editColumns}
       renderViewBody={renderViewBody}
-      renderSummary={renderSummary}
+      extractSummary={extractSummary}
     />
   )
 }

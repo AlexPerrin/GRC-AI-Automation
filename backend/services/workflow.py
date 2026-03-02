@@ -20,6 +20,21 @@ from services.security.analyzer import SecurityAnalyzer
 
 logger = logging.getLogger(__name__)
 
+# Ordered list of non-terminal statuses used to prevent status downgrades
+# when reviews are completed out of sequence.
+_STATUS_ORDER = [
+    VendorStatus.INTAKE,
+    VendorStatus.USE_CASE_REVIEW,
+    VendorStatus.USE_CASE_APPROVED,
+    VendorStatus.LEGAL_REVIEW,
+    VendorStatus.LEGAL_APPROVED,
+    VendorStatus.SECURITY_REVIEW,
+    VendorStatus.SECURITY_APPROVED,
+    VendorStatus.FINANCIAL_REVIEW,
+    VendorStatus.FINANCIAL_APPROVED,
+    VendorStatus.ONBOARDED,
+]
+
 
 class WorkflowService:
     def __init__(self, db: Session):
@@ -28,6 +43,14 @@ class WorkflowService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _advance_status(self, vendor: Vendor, new_status: VendorStatus) -> None:
+        """Advance vendor status only if new_status is higher than current."""
+        try:
+            if _STATUS_ORDER.index(new_status) > _STATUS_ORDER.index(vendor.status):
+                vendor.status = new_status
+        except ValueError:
+            pass  # REJECTED or NDA_PENDING not in order list — leave status unchanged
 
     def _log(self, vendor_id: int, event_type: str, actor: str, payload: dict) -> None:
         """Append an immutable entry to the audit log."""
@@ -63,6 +86,17 @@ class WorkflowService:
             status=ReviewStatus.PENDING,
         )
         db.add(review)
+
+        # Pre-create PENDING reviews for all remaining stages so every panel
+        # always has a review record and can record decisions immediately.
+        for stage in (DocumentStage.LEGAL, DocumentStage.SECURITY, DocumentStage.FINANCIAL):
+            db.add(Review(
+                vendor_id=vendor_id,
+                stage=stage,
+                review_type=ReviewType.AI_ANALYSIS,
+                status=ReviewStatus.PENDING,
+            ))
+
         db.commit()
         db.refresh(review)
 
@@ -136,8 +170,8 @@ class WorkflowService:
         db.commit()
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
-        if vendor and vendor.status != VendorStatus.LEGAL_REVIEW:
-            vendor.status = VendorStatus.LEGAL_REVIEW
+        if vendor:
+            self._advance_status(vendor, VendorStatus.LEGAL_REVIEW)
             db.commit()
 
         analyzer = LegalAnalyzer(
@@ -205,12 +239,10 @@ class WorkflowService:
         review = db.query(Review).filter(Review.id == review_id).first()
         if not review:
             raise ValueError(f"Review {review_id} not found")
-        if review.status != ReviewStatus.COMPLETE:
-            raise ValueError("Review must be COMPLETE before a decision can be recorded")
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
         if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
-            vendor.status = VendorStatus.LEGAL_APPROVED
+            self._advance_status(vendor, VendorStatus.LEGAL_APPROVED)
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="LEGAL_DECISION_APPROVED",
@@ -244,31 +276,14 @@ class WorkflowService:
     # ------------------------------------------------------------------
 
     def confirm_nda(self, vendor_id: int) -> Vendor:
-        """
-        Confirm NDA execution for a vendor.
-        Requires vendor status == USE_CASE_APPROVED; advances to LEGAL_REVIEW.
-        Raises ValueError if the vendor is not found or in the wrong state.
-        """
+        """Record NDA execution for a vendor. No status gate — NDA is optional."""
         db = self.db
 
         vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
         if not vendor:
             raise ValueError(f"Vendor {vendor_id} not found")
-        if vendor.status != VendorStatus.USE_CASE_APPROVED:
-            raise ValueError(
-                f"NDA confirmation requires status USE_CASE_APPROVED, current: {vendor.status}"
-            )
 
-        vendor.status = VendorStatus.LEGAL_REVIEW
-        # Auto-create the LEGAL review so the AI analysis stage is ready
-        legal_review = Review(
-            vendor_id=vendor_id,
-            stage=DocumentStage.LEGAL,
-            review_type=ReviewType.AI_ANALYSIS,
-            status=ReviewStatus.PENDING,
-        )
-        db.add(legal_review)
-        db.commit()
+        vendor.nda_confirmed = True
 
         self._log(
             vendor_id=vendor_id,
@@ -286,10 +301,7 @@ class WorkflowService:
     # ------------------------------------------------------------------
 
     async def trigger_security_review(self, review_id: int, doc_id: int) -> Review:
-        """
-        Kick off RAG-powered security analysis and persist the result.
-        NDA gate: vendor must be in SECURITY_REVIEW status.
-        """
+        """Kick off RAG-powered security analysis and persist the result."""
         db = self.db
 
         review = db.query(Review).filter(Review.id == review_id).first()
@@ -297,15 +309,8 @@ class WorkflowService:
             raise ValueError(f"Review {review_id} not found")
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
-        if not vendor or vendor.status not in (
-            VendorStatus.LEGAL_APPROVED, VendorStatus.SECURITY_REVIEW
-        ):
-            raise PermissionError(
-                "Security review requires vendor status LEGAL_APPROVED or SECURITY_REVIEW"
-            )
-
-        if vendor.status != VendorStatus.SECURITY_REVIEW:
-            vendor.status = VendorStatus.SECURITY_REVIEW
+        if vendor:
+            self._advance_status(vendor, VendorStatus.SECURITY_REVIEW)
             db.commit()
 
         review.status = ReviewStatus.IN_PROGRESS
@@ -377,12 +382,10 @@ class WorkflowService:
         review = db.query(Review).filter(Review.id == review_id).first()
         if not review:
             raise ValueError(f"Review {review_id} not found")
-        if review.status != ReviewStatus.COMPLETE:
-            raise ValueError("Review must be COMPLETE before a decision can be recorded")
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
         if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
-            vendor.status = VendorStatus.SECURITY_APPROVED
+            self._advance_status(vendor, VendorStatus.SECURITY_APPROVED)
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="SECURITY_DECISION_APPROVED",
@@ -416,16 +419,12 @@ class WorkflowService:
     # ------------------------------------------------------------------
 
     def start_financial_review(self, vendor_id: int) -> Review:
-        """Open Stage 4 review for a vendor in SECURITY_APPROVED status."""
+        """Open Stage 4 Financial review."""
         db = self.db
 
         vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
         if not vendor:
             raise ValueError(f"Vendor {vendor_id} not found")
-        if vendor.status != VendorStatus.SECURITY_APPROVED:
-            raise ValueError(
-                f"Vendor must be in SECURITY_APPROVED status, current: {vendor.status}"
-            )
 
         review = Review(
             vendor_id=vendor_id,
@@ -436,9 +435,6 @@ class WorkflowService:
         db.add(review)
         db.commit()
         db.refresh(review)
-
-        vendor.status = VendorStatus.FINANCIAL_REVIEW
-        db.commit()
 
         self._log(
             vendor_id=vendor_id,
@@ -526,12 +522,10 @@ class WorkflowService:
         review = db.query(Review).filter(Review.id == review_id).first()
         if not review:
             raise ValueError(f"Review {review_id} not found")
-        if review.status != ReviewStatus.COMPLETE:
-            raise ValueError("Review must be COMPLETE before a decision can be recorded")
 
         vendor = db.query(Vendor).filter(Vendor.id == review.vendor_id).first()
         if action in ("APPROVE", "APPROVE_WITH_CONDITIONS"):
-            vendor.status = VendorStatus.FINANCIAL_APPROVED
+            self._advance_status(vendor, VendorStatus.FINANCIAL_APPROVED)
             self._log(
                 vendor_id=review.vendor_id,
                 event_type="FINANCIAL_DECISION_APPROVED",
@@ -565,15 +559,15 @@ class WorkflowService:
     # ------------------------------------------------------------------
 
     def complete_onboarding(self, vendor_id: int) -> Vendor:
-        """Set vendor status to ONBOARDED after all stages approved."""
+        """Set vendor status to ONBOARDED."""
         db = self.db
 
         vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
         if not vendor:
             raise ValueError(f"Vendor {vendor_id} not found")
-        if vendor.status != VendorStatus.FINANCIAL_APPROVED:
+        if vendor.status in (VendorStatus.ONBOARDED, VendorStatus.REJECTED):
             raise ValueError(
-                f"Vendor must be in FINANCIAL_APPROVED status, current: {vendor.status}"
+                f"Vendor is already in terminal status: {vendor.status}"
             )
 
         vendor.status = VendorStatus.ONBOARDED

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { startLegalReview } from '../api/client'
 import Badge from '../components/ui/Badge'
 import type { Document, LegalAnalysisResult, LegalRegulationFinding, Review, Vendor } from '../types'
-import ReviewPanel, { AnalysisSummaryHeader, type EditColumn } from './ReviewPanel'
+import ReviewPanel, { type EditColumn, type SummaryFields } from './ReviewPanel'
 
 interface LegalReviewPanelProps {
   review: Review | undefined
@@ -124,6 +124,18 @@ const statusRowColors: Record<LegalRegulationFinding['status'], string> = {
 
 const riskToScore: Record<string, number> = { low: 2, medium: 5, high: 7.5, critical: 9.5 }
 
+function extractSummary(output: unknown): SummaryFields {
+  const o = output as LegalAnalysisResult
+  const score = riskToScore[o.overall_risk] ?? 5
+  return {
+    riskScore: String(score),
+    riskRating: o.overall_risk ?? '',
+    recommendation: o.recommendation ?? '',
+    summary: o.summary,
+    conditions: o.conditions,
+  }
+}
+
 function renderViewBody(rows: LegalRow[]): React.ReactNode {
   return (
     <div className="overflow-x-auto">
@@ -153,20 +165,6 @@ function renderViewBody(rows: LegalRow[]): React.ReactNode {
   )
 }
 
-function renderSummary(output: unknown): React.ReactNode {
-  const o = output as LegalAnalysisResult
-  const score = riskToScore[o.overall_risk] ?? 5
-  return (
-    <AnalysisSummaryHeader
-      riskScore={`${score}/10`}
-      riskRating={o.overall_risk}
-      recommendation={o.recommendation}
-      summary={o.summary}
-      conditions={o.conditions}
-    />
-  )
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function LegalReviewPanel({ review, documents, vendorId, vendor: _vendor }: LegalReviewPanelProps) {
@@ -183,7 +181,7 @@ export default function LegalReviewPanel({ review, documents, vendorId, vendor: 
       seedRows={seedRows}
       editColumns={editColumns}
       renderViewBody={renderViewBody}
-      renderSummary={renderSummary}
+      extractSummary={extractSummary}
     />
   )
 }

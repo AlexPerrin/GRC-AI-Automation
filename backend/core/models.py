@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
@@ -64,6 +64,7 @@ class Vendor(Base):
     website = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
     status = Column(Enum(VendorStatus), default=VendorStatus.INTAKE, nullable=False)
+    nda_confirmed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     documents = relationship("Document", back_populates="vendor", cascade="all, delete-orphan")

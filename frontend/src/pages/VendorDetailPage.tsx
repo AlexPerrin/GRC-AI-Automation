@@ -26,15 +26,7 @@ function NdaPanel({ vendor, onConfirmed }: { vendor: Vendor; onConfirmed: () => 
     },
   })
 
-  if (['INTAKE', 'USE_CASE_REVIEW'].includes(vendor.status)) {
-    return (
-      <Card>
-        <p className="text-sm text-gray-500">NDA confirmation will be available after use case approval.</p>
-      </Card>
-    )
-  }
-
-  if (vendor.status !== 'USE_CASE_APPROVED') {
+  if (vendor.nda_confirmed) {
     return (
       <Card>
         <div className="flex items-center gap-2 text-green-700">
@@ -87,8 +79,25 @@ const riskRatingFromScore = (score: number): string => {
 const riskToScore: Record<string, string> = { low: '2/10', medium: '5/10', high: '7.5/10', critical: '9.5/10' }
 
 function reviewSummary(review: Review | undefined) {
-  if (!review || review.status !== 'COMPLETE') return null
-  if (review.ai_output) {
+  if (!review) return null
+
+  // Prefer the editable banner values persisted in localStorage
+  try {
+    const saved = localStorage.getItem(`review-summary-${review.id}`)
+    if (saved) {
+      const parsed = JSON.parse(saved) as { riskScore?: string; riskRating?: string; recommendation?: string }
+      if (parsed.riskScore || parsed.riskRating) {
+        return {
+          riskScore: parsed.riskScore ? `${parsed.riskScore}/10` : null,
+          riskRating: parsed.riskRating || null,
+          recommendation: parsed.recommendation || null,
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
+  // Fall back to raw AI output
+  if (review.status === 'COMPLETE' && review.ai_output) {
     const o = review.ai_output as unknown as Record<string, unknown>
     const overallRisk = o.overall_risk ? String(o.overall_risk) : null
     const overallScore = o.overall_risk_score != null ? (o.overall_risk_score as number) : null
@@ -99,6 +108,7 @@ function reviewSummary(review: Review | undefined) {
           ? `${overallScore.toFixed(1)}/10`
           : null,
       riskRating: overallRisk ?? (overallScore != null ? riskRatingFromScore(overallScore) : null),
+      recommendation: null,
     }
   }
   return null
@@ -120,18 +130,15 @@ const statusLabel: Record<string, string> = {
 function OnboardingDecisionPanel({
   vendor,
   reviews,
+  decisions,
 }: {
   vendor: Vendor
   reviews: Review[] | undefined
+  decisions: Decision[] | undefined
 }) {
   const queryClient = useQueryClient()
   const [rationale, setRationale] = useState('')
   const [showReject, setShowReject] = useState(false)
-
-  const { data: decisions } = useQuery({
-    queryKey: ['vendor-decisions', String(vendor.id)],
-    queryFn: () => listVendorDecisions(vendor.id),
-  })
 
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
@@ -151,7 +158,7 @@ function OnboardingDecisionPanel({
 
   const isOnboarded = vendor.status === 'ONBOARDED'
   const isRejected  = vendor.status === 'REJECTED'
-  const canDecide   = vendor.status === 'FINANCIAL_APPROVED'
+  const canDecide   = !isOnboarded && !isRejected
 
   return (
     <div className="space-y-4">
@@ -208,7 +215,7 @@ function OnboardingDecisionPanel({
                     {statusText}
                   </span>
                 </div>
-                {(meta?.riskScore || meta?.riskRating) && (
+                {(meta?.riskScore || meta?.riskRating || meta?.recommendation) && (
                   <div className="flex items-center gap-3 flex-wrap mt-1">
                     {meta?.riskScore && (
                       <span className="text-xs text-gray-500">
@@ -218,6 +225,11 @@ function OnboardingDecisionPanel({
                     {meta?.riskRating && (
                       <span className="text-xs text-gray-500 flex items-center gap-1">
                         Risk Rating: <Badge label={meta.riskRating} />
+                      </span>
+                    )}
+                    {meta?.recommendation && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        Recommendation: <Badge label={meta.recommendation} />
                       </span>
                     )}
                   </div>
@@ -279,7 +291,7 @@ function OnboardingDecisionPanel({
         <Card>
           <h3 className="text-base font-semibold text-gray-900 mb-2">Final Decision</h3>
           <p className="text-sm text-gray-600 mb-4">
-            All reviews are approved. Approve the vendor to complete onboarding or reject to end the process.
+            Approve the vendor to complete onboarding or reject to end the process.
           </p>
           {approveMutation.isError && (
             <p className="text-sm text-red-600 mb-2">{(approveMutation.error as Error).message}</p>
@@ -334,13 +346,6 @@ function OnboardingDecisionPanel({
         </Card>
       )}
 
-      {!canDecide && !isOnboarded && !isRejected && (
-        <Card>
-          <p className="text-sm text-gray-500">
-            Onboarding decision will be available after all reviews are approved.
-          </p>
-        </Card>
-      )}
     </div>
   )
 }
@@ -384,6 +389,12 @@ export default function VendorDetailPage() {
     enabled: !!vendor,
   })
 
+  const { data: decisions } = useQuery({
+    queryKey: ['vendor-decisions', id],
+    queryFn: () => listVendorDecisions(Number(id!)),
+    enabled: !!vendor,
+  })
+
   useQuery({
     queryKey: ['vendor', id],
     queryFn: () => getVendor(id!),
@@ -395,6 +406,22 @@ export default function VendorDetailPage() {
 
   const reviewFor = (stage: DocumentStage) => reviews?.find((r) => r.stage === stage)
   const docsFor = (stage: DocumentStage) => documents?.filter((d) => d.stage === stage) ?? []
+
+  // Per-step completion — each phase is independent of the others
+  const isPhaseApproved = (stage: DocumentStage) => {
+    const review = reviewFor(stage)
+    if (!review) return false
+    return (decisions ?? []).some(
+      d => d.review_id === review.id && (d.action === 'APPROVE' || d.action === 'APPROVE_WITH_CONDITIONS')
+    )
+  }
+  const stepCompletion = [
+    reviewFor('USE_CASE')?.status === 'COMPLETE', // Use Case: form actually submitted
+    vendor.nda_confirmed,                          // NDA: confirmed flag
+    isPhaseApproved('LEGAL'),
+    isPhaseApproved('SECURITY'),
+    isPhaseApproved('FINANCIAL'),
+  ]
 
   return (
     <div className="space-y-6">
@@ -460,7 +487,9 @@ export default function VendorDetailPage() {
       {/* Stepper — doubles as navigation */}
       <Card>
         <StatusStepper
-          status={vendor.status}
+          stepCompletion={stepCompletion}
+          isOnboarded={vendor.status === 'ONBOARDED'}
+          isRejected={vendor.status === 'REJECTED'}
           activeTab={activeTab}
           onTabChange={setActiveTab}
         />
@@ -497,7 +526,7 @@ export default function VendorDetailPage() {
           />
         )}
         {activeTab === 'onboarding' && (
-          <OnboardingDecisionPanel vendor={vendor} reviews={reviews} />
+          <OnboardingDecisionPanel vendor={vendor} reviews={reviews} decisions={decisions} />
         )}
       </div>
 

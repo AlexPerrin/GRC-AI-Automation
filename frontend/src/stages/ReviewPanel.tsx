@@ -5,10 +5,10 @@
  * edit table, error notice, and DecisionPanel.
  *
  * Callers supply stage-specific config: column definitions, view renderer,
- * summary renderer, and API call.
+ * summary extractor, and API call.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { triggerReview } from '../api/client'
 import DecisionPanel from '../components/DecisionPanel'
 import DocumentUpload from '../components/DocumentUpload'
@@ -45,6 +45,17 @@ export function CheckIcon({ className = 'h-4 w-4' }: { className?: string }) {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** Structured summary fields — always editable by the human reviewer. */
+export interface SummaryFields {
+  riskScore: string
+  riskRating: string
+  recommendation: string
+  summary?: string
+  conditions?: string[]
+}
+
+const EMPTY_SUMMARY: SummaryFields = { riskScore: '', riskRating: '', recommendation: '' }
+
 /** A column definition for the edit-mode table. */
 export interface EditColumn<TRow extends { _id: number }> {
   header: string
@@ -65,7 +76,7 @@ export interface ReviewPanelProps<TRow extends { _id: number }> {
   /** Title for the Analysis card (e.g. "Legal Analysis") */
   title: string
 
-  /** Creates a new review record for this stage */
+  /** Creates a new review record for this stage (idempotent — returns existing if present) */
   startReview(vendorId: number): Promise<{ id: number }>
 
   /** Returns a blank row (without _id) for the + Add Row action */
@@ -80,11 +91,123 @@ export interface ReviewPanelProps<TRow extends { _id: number }> {
   /** Renders the view-mode body (table, cards, etc.) given the current rows */
   renderViewBody(rows: TRow[]): React.ReactNode
 
-  /** Renders read-only AI summary above the table (only called when COMPLETE and output exists) */
-  renderSummary?(output: unknown): React.ReactNode
+  /**
+   * Extracts structured summary fields from AI output.
+   * When provided, a summary section is always shown above the findings table
+   * with editable inputs pre-populated from AI output.
+   */
+  extractSummary?(output: unknown): SummaryFields
 }
 
-// ── Shared analysis summary header ────────────────────────────────────────────
+// ── Editable summary header ───────────────────────────────────────────────────
+
+function EditableSummaryHeader({
+  fields,
+  onChange,
+  isEditing,
+}: {
+  fields: SummaryFields
+  onChange: (field: keyof Pick<SummaryFields, 'riskScore' | 'riskRating' | 'recommendation'>, value: string) => void
+  isEditing: boolean
+}) {
+  const summaryBlock = (
+    <>
+      {fields.summary && (
+        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{fields.summary}</p>
+      )}
+      {fields.conditions && fields.conditions.length > 0 && (
+        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
+          <ul className="space-y-1">
+            {fields.conditions.map((c, i) => (
+              <li key={i} className="text-sm text-yellow-700 flex gap-1">
+                <span>•</span><span>{c}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-6 flex-wrap">
+        {/* Risk Score */}
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Score</span>
+          <div className="flex items-center gap-1 mt-0.5">
+            {isEditing ? (
+              <>
+                <input
+                  type="number"
+                  min={0}
+                  max={10}
+                  step={0.1}
+                  className="w-16 border border-gray-200 rounded px-2 py-0.5 text-xl font-bold text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  value={fields.riskScore}
+                  onChange={e => onChange('riskScore', e.target.value.match(/^\d*\.?\d?/)?.[0] ?? '')}
+                  placeholder="0.0"
+                />
+                <span className="text-xl font-bold text-gray-400">/10</span>
+              </>
+            ) : (
+              <span className="text-xl font-bold text-gray-900">
+                {fields.riskScore || '—'}<span className="text-xl font-bold text-gray-400">/10</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Risk Rating */}
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Rating</span>
+          <div className="mt-0.5">
+            {isEditing ? (
+              <select
+                className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                value={fields.riskRating}
+                onChange={e => onChange('riskRating', e.target.value)}
+              >
+                <option value="">— select —</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </select>
+            ) : (
+              fields.riskRating ? <Badge label={fields.riskRating} /> : <span className="text-sm text-gray-400">—</span>
+            )}
+          </div>
+        </div>
+
+        {/* Recommendation */}
+        <div>
+          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
+          <div className="mt-0.5">
+            {isEditing ? (
+              <select
+                className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                value={fields.recommendation}
+                onChange={e => onChange('recommendation', e.target.value)}
+              >
+                <option value="">— select —</option>
+                <option value="approve">approve</option>
+                <option value="approve_with_conditions">approve_with_conditions</option>
+                <option value="reject">reject</option>
+              </select>
+            ) : (
+              fields.recommendation ? <Badge label={fields.recommendation} /> : <span className="text-sm text-gray-400">—</span>
+            )}
+          </div>
+        </div>
+      </div>
+      {summaryBlock}
+    </div>
+  )
+}
+
+// ── Legacy read-only summary header (kept for reference / external use) ───────
 
 export interface AnalysisSummaryHeaderProps {
   riskScore: string
@@ -94,46 +217,9 @@ export interface AnalysisSummaryHeaderProps {
   conditions?: string[]
 }
 
-export function AnalysisSummaryHeader({
-  riskScore,
-  riskRating,
-  recommendation,
-  summary,
-  conditions,
-}: AnalysisSummaryHeaderProps) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-6 flex-wrap">
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Score</span>
-          <p className="text-2xl font-bold text-gray-900">{riskScore}</p>
-        </div>
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Risk Rating</span>
-          <div className="mt-0.5"><Badge label={riskRating} /></div>
-        </div>
-        <div>
-          <span className="text-xs text-gray-500 uppercase tracking-wide">Recommendation</span>
-          <div className="mt-0.5"><Badge label={recommendation} /></div>
-        </div>
-      </div>
-      {summary && (
-        <p className="text-sm text-gray-700 bg-gray-50 rounded-md p-3">{summary}</p>
-      )}
-      {conditions && conditions.length > 0 && (
-        <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
-          <p className="text-sm font-medium text-yellow-800 mb-1">Conditions</p>
-          <ul className="space-y-1">
-            {conditions.map((c, i) => (
-              <li key={i} className="text-sm text-yellow-700 flex gap-1">
-                <span>•</span><span>{c}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  )
+/** @deprecated Use extractSummary prop on ReviewPanel instead. */
+export function AnalysisSummaryHeader(_props: AnalysisSummaryHeaderProps) {
+  return null
 }
 
 // ── Stable uid counter shared across all ReviewPanel instances ────────────────
@@ -154,19 +240,71 @@ export default function ReviewPanel<TRow extends { _id: number }>({
   seedRows,
   editColumns,
   renderViewBody,
-  renderSummary,
+  extractSummary,
 }: ReviewPanelProps<TRow>) {
   const queryClient = useQueryClient()
   const [rows, setRows] = useState<TRow[]>([])
-  const [seededId, setSeededId] = useState<number | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [summaryFields, setSummaryFields] = useState<SummaryFields>(EMPTY_SUMMARY)
 
+  // Refs — don't cause re-renders, safe to read inside effects/callbacks
+  const seededIdRef = useRef<number | null>(null)  // which review.id has been seeded
+  const loadedRef = useRef(false)                  // whether localStorage was attempted
+
+  // Seed rows/summary: try localStorage first, fall back to AI output
   useEffect(() => {
-    if (review?.status === 'COMPLETE' && review.ai_output && review.id !== seededId) {
-      setRows(seedRows(review.ai_output).map(r => ({ ...r, _id: uid() } as TRow)))
-      setSeededId(review.id)
+    if (!review?.id) return
+    if (seededIdRef.current === review.id) return
+
+    // Try localStorage once per review.id
+    if (!loadedRef.current) {
+      loadedRef.current = true
+
+      const savedRows = localStorage.getItem(`review-rows-${review.id}`)
+      if (savedRows) {
+        try {
+          const parsed = JSON.parse(savedRows) as Array<Record<string, unknown>>
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRows(parsed.map(r => ({ ...r, _id: uid() } as unknown as TRow)))
+            seededIdRef.current = review.id
+          }
+        } catch { /* ignore malformed */ }
+      }
+
+      if (extractSummary) {
+        const savedSummary = localStorage.getItem(`review-summary-${review.id}`)
+        if (savedSummary) {
+          try { setSummaryFields(JSON.parse(savedSummary) as SummaryFields) } catch { /* ignore */ }
+        }
+      }
+
+      // If we loaded rows from localStorage, skip AI seeding
+      if (seededIdRef.current === review.id) return
     }
-  }, [review?.status, review?.id])
+
+    // Seed from AI output if the review is complete
+    if (review.status === 'COMPLETE' && review.ai_output) {
+      setRows(seedRows(review.ai_output).map(r => ({ ...r, _id: uid() } as TRow)))
+      if (extractSummary) setSummaryFields(extractSummary(review.ai_output))
+      seededIdRef.current = review.id
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review?.id, review?.status, review?.ai_output])
+
+  // Persist rows to localStorage whenever they change
+  useEffect(() => {
+    if (review?.id) {
+      localStorage.setItem(`review-rows-${review.id}`, JSON.stringify(rows))
+    }
+  }, [rows, review?.id])
+
+  // Persist summary to localStorage whenever it changes
+  useEffect(() => {
+    if (review?.id && extractSummary) {
+      localStorage.setItem(`review-summary-${review.id}`, JSON.stringify(summaryFields))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [summaryFields, review?.id])
 
   // Idempotent: re-uses existing review for PENDING / ERROR / COMPLETE,
   // creates a new one only when none exists yet.
@@ -179,6 +317,15 @@ export default function ReviewPanel<TRow extends { _id: number }>({
       return triggerReview(created.id, docId)
     },
     onSuccess: () => {
+      // Reset so new AI output is picked up after regeneration
+      seededIdRef.current = null
+      loadedRef.current = false
+      setRows([])
+      setSummaryFields(EMPTY_SUMMARY)
+      if (review?.id) {
+        localStorage.removeItem(`review-rows-${review.id}`)
+        localStorage.removeItem(`review-summary-${review.id}`)
+      }
       void queryClient.invalidateQueries({ queryKey: ['reviews', String(vendorId)] })
     },
   })
@@ -266,9 +413,15 @@ export default function ReviewPanel<TRow extends { _id: number }>({
           </div>
         )}
 
-        {/* AI summary (read-only) */}
-        {isComplete && review.ai_output && renderSummary && (
-          <div className="mb-6">{renderSummary(review.ai_output)}</div>
+        {/* Summary — always visible when extractSummary is provided */}
+        {extractSummary && (
+          <div className="mb-6">
+            <EditableSummaryHeader
+              fields={summaryFields}
+              onChange={(field, value) => setSummaryFields(prev => ({ ...prev, [field]: value }))}
+              isEditing={isEditing}
+            />
+          </div>
         )}
 
         {/* Findings — editable table or view-mode body */}
@@ -315,11 +468,17 @@ export default function ReviewPanel<TRow extends { _id: number }>({
             </button>
           </>
         ) : (
-          rows.length > 0 ? renderViewBody(rows) : null
+          rows.length > 0
+            ? renderViewBody(rows)
+            : (
+              <p className="text-sm text-gray-400 italic py-4 text-center">
+                No findings yet. Run AI Analysis above or click Edit to add rows manually.
+              </p>
+            )
         )}
 
-        {/* Decision panel */}
-        {isComplete && (
+        {/* Decision panel — always present (review created at intake) */}
+        {review?.id && (
           <div className="mt-6">
             <DecisionPanel reviewId={review.id} vendorId={vendorId} />
           </div>
