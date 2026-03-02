@@ -1,0 +1,123 @@
+SECUREVAULT LTD. — FINANCIAL SUMMARY STATEMENT
+Fiscal Year Ended 31 March 2024
+Prepared for: Third-Party Vendor Due Diligence Review
+Confidential — Not for Distribution
+
+1. EXECUTIVE SUMMARY
+
+SecureVault Ltd. delivered stable financial performance in FY 2024 (year ended
+31 March 2024). Total revenue grew 9.2% year-over-year to £8.7 million, supported
+by continued subscription growth in the legal and financial services verticals.
+EBITDA improved modestly to £1.2 million. The company carries moderate leverage
+following a 2022 acquisition of a smaller competitor, though debt servicing remains
+comfortably covered by operating cash flow. Management considers the current
+financial position sound and the business well-positioned for continued growth.
+
+2. INCOME STATEMENT HIGHLIGHTS (FY 2024)
+
+  Total Revenue:                  £8,712,000
+    Subscription (ARR):           £7,841,000   (90.0% of total)
+    Professional Services:        £871,000     (10.0% of total)
+
+  Gross Profit:                   £6,098,000
+  Gross Margin:                   70.0%
+
+  Operating Expenses:
+    Research & Development:       £1,524,000
+    Sales & Marketing:            £1,873,000
+    General & Administrative:     £1,091,000
+    Amortisation of Acquired Intangibles: £318,000
+  Total OpEx:                     £4,806,000
+
+  EBITDA:                         £1,292,000   (EBITDA margin: 14.8%)
+  Depreciation & Amortisation:    £412,000
+  EBIT:                           £880,000
+  Net Finance Costs:              £(341,000)   (interest on acquisition debt)
+  Profit Before Tax:              £539,000
+  Income Tax Expense:             £(129,000)
+  Net Profit After Tax:           £410,000
+
+  Comparative FY 2023:
+    Total Revenue:                £7,977,000   (growth: +9.2%)
+    Gross Margin:                 68.4%
+    EBITDA:                       £1,104,000
+
+3. BALANCE SHEET HIGHLIGHTS (31 March 2024)
+
+  Current Assets:
+    Cash and Cash Equivalents:    £1,841,000
+    Trade Receivables (net):      £892,000
+    Other Current Assets:         £214,000
+  Total Current Assets:           £2,947,000
+
+  Non-Current Assets:
+    Intangible Assets (acquired):  £2,140,000
+    Capitalised Development Costs: £918,000
+    Property, Plant & Equipment:   £287,000
+    Right-of-Use Assets:           £344,000
+  Total Non-Current Assets:        £3,689,000
+
+  Total Assets:                    £6,636,000
+
+  Current Liabilities:
+    Trade Payables:                £618,000
+    Deferred Revenue (current):    £1,742,000
+    Current Portion of Term Loan:  £800,000
+    Other Current Liabilities:     £321,000
+  Total Current Liabilities:       £3,481,000
+
+  Non-Current Liabilities:
+    Term Loan (net of current):    £2,400,000   (acquisition facility, NatWest)
+    Lease Liabilities (non-current): £267,000
+  Total Non-Current Liabilities:   £2,667,000
+
+  Total Liabilities:               £6,148,000
+  Shareholders' Equity:            £488,000
+  Total Liabilities & Equity:      £6,636,000
+
+4. KEY FINANCIAL RATIOS
+
+  Current Ratio:                   0.85        (slightly below 1.0; manageable given
+                                               high proportion of deferred revenue)
+  Quick Ratio:                     0.79
+  Debt-to-Equity Ratio:            6.69        (elevated due to acquisition debt; leverage
+                                               is declining as loan is repaid)
+  Net Debt:                        £1,359,000  (term loan less cash)
+  Net Debt / EBITDA:               1.05x       (within lender covenant of 2.5x)
+  Revenue Growth (YoY):            +9.2%
+  Net Revenue Retention (NRR):     104%        (stable; low churn in core verticals)
+  Annual Recurring Revenue (ARR):  £8,100,000  (as at 31 March 2024)
+
+5. CASH FLOW SUMMARY
+
+  Net Cash from Operating Activities:         £1,148,000
+  Net Cash used in Investing Activities:      £(421,000)   (capitalised development costs)
+  Net Cash from Financing Activities:         £(918,000)   (term loan repayments)
+  Net Decrease in Cash:                       £(191,000)
+  Opening Cash Balance (1 Apr 2023):          £2,032,000
+  Closing Cash Balance (31 Mar 2024):         £1,841,000
+
+  Debt Service Coverage Ratio (DSCR):         1.49x       (comfortably above lender minimum of 1.2x)
+  Undrawn revolving facility:                 £500,000    (NatWest, available for working capital)
+
+6. NOTES ON LEVERAGE
+
+The term loan was drawn in October 2022 to part-fund the acquisition of DocSafe
+Technologies Ltd. The loan has a 5-year term with quarterly amortisation. The
+original principal was £4.0 million; £0.8 million was repaid in FY 2024, consistent
+with the repayment schedule. The company is in compliance with all financial
+covenants as at 31 March 2024. Management expects the debt/equity ratio to normalise
+to below 3.0x within the next two financial years as the loan amortises.
+
+7. AUDITOR'S NOTE
+
+These figures are extracted from the audited financial statements of SecureVault Ltd.
+for the year ended 31 March 2024. The audit was conducted by Moore Kingston Smith LLP
+in accordance with UK Financial Reporting Standard 102 (FRS 102). An unqualified
+(clean) opinion was issued on 30 June 2024. Full audited accounts are filed at
+Companies House (Company No. 09841127) and are publicly available.
+
+8. CONTACT
+
+Chief Financial Officer: finance@securevault.io
+SecureVault Ltd., 12 Finsbury Square, London EC2A 1AR, United Kingdom

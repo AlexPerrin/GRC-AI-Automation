@@ -1,0 +1,125 @@
+DATAFLOW INC. — FINANCIAL SUMMARY STATEMENT
+Fiscal Year Ended 31 December 2024
+Prepared for: Third-Party Vendor Due Diligence Review
+Confidential — Not for Distribution
+
+1. EXECUTIVE SUMMARY
+
+DataFlow Inc. experienced a challenging fiscal year in FY 2024. Total revenue
+declined by 12.4% year-over-year to $18.3 million, driven by elevated customer
+churn in the mid-market segment and pricing pressure from larger incumbents.
+The company recorded negative EBITDA of $(2.1) million and a net loss of
+$(3.4) million. Cash reserves declined materially during the year. The company
+undertook a restructuring in Q3 2024, reducing headcount by 22%.
+
+2. INCOME STATEMENT HIGHLIGHTS (FY 2024)
+
+  Total Revenue:                  $18,312,000
+    Subscription (ARR):           $15,644,000   (85.4% of total)
+    Professional Services:        $2,668,000    (14.6% of total)
+
+  Gross Profit:                   $9,705,000
+  Gross Margin:                   53.0%
+
+  Operating Expenses:
+    Research & Development:       $5,218,000
+    Sales & Marketing:            $4,902,000
+    General & Administrative:     $1,686,000
+    Restructuring Charges (Q3):   $1,124,000
+  Total OpEx:                     $12,930,000
+
+  EBITDA:                         $(2,125,000)  (EBITDA margin: -11.6%)
+  Depreciation & Amortisation:    $614,000
+  EBIT:                           $(2,739,000)
+  Net Finance Costs:              $(661,000)    (interest on term loan)
+  Profit Before Tax:              $(3,400,000)
+  Income Tax (credit):            $0
+  Net Loss After Tax:             $(3,400,000)
+
+  Comparative FY 2023:
+    Total Revenue:                $20,908,000   (decline: -12.4%)
+    Gross Margin:                 58.3%
+    EBITDA:                       $841,000      (now deteriorated to negative)
+
+3. BALANCE SHEET HIGHLIGHTS (31 December 2024)
+
+  Current Assets:
+    Cash and Cash Equivalents:    $2,104,000
+    Trade Receivables (net):      $2,318,000
+    Other Current Assets:         $441,000
+  Total Current Assets:           $4,863,000
+
+  Non-Current Assets:
+    Intangible Assets:            $3,241,000
+    Goodwill:                     $4,800,000   (legacy acquisition, impairment test pending)
+    Property, Plant & Equipment:  $512,000
+  Total Non-Current Assets:       $8,553,000
+
+  Total Assets:                   $13,416,000
+
+  Current Liabilities:
+    Trade Payables:               $1,873,000
+    Accrued Liabilities:          $1,104,000
+    Deferred Revenue (current):   $3,218,000
+    Current Portion of Term Loan: $2,000,000
+  Total Current Liabilities:      $8,195,000
+
+  Non-Current Liabilities:
+    Term Loan (net of current):   $5,500,000   (Silicon Valley Bank successor facility)
+    Other Non-Current Liabilities: $318,000
+  Total Non-Current Liabilities:  $5,818,000
+
+  Total Liabilities:              $14,013,000
+  Shareholders' Equity (Deficit): $(597,000)
+  Total Liabilities & Equity:     $13,416,000
+
+4. KEY FINANCIAL RATIOS
+
+  Current Ratio:                  0.59        (below 1.0 — current liabilities exceed assets)
+  Quick Ratio:                    0.42        (significant liquidity concern)
+  Debt-to-Equity Ratio:           N/A         (equity is negative — technically insolvent on book basis)
+  Net Debt:                       $5,396,000  (term loan less cash)
+  Net Debt / EBITDA:              N/A         (EBITDA negative — leverage ratio not meaningful)
+  Revenue Growth (YoY):           -12.4%
+  Net Revenue Retention (NRR):    87%         (below 100% — existing customers contracting)
+  Annual Recurring Revenue (ARR): $14,100,000 (as at 31 Dec 2024, down from $17,200,000)
+
+5. CASH FLOW SUMMARY
+
+  Net Cash used in Operating Activities:     $(1,618,000)
+  Net Cash used in Investing Activities:     $(312,000)
+  Net Cash from Financing Activities:        $(874,000)  (term loan repayments)
+  Net Decrease in Cash:                      $(2,804,000)
+  Opening Cash Balance (1 Jan 2024):         $4,908,000
+  Closing Cash Balance (31 Dec 2024):        $2,104,000
+
+  Estimated Cash Runway (at current burn):   7–9 months (management estimate, Q1 2025)
+  Committed Credit Facility:                 None currently available; existing facility
+                                             is fully drawn and includes a net leverage covenant
+                                             that was breached as at 31 December 2024. A waiver
+                                             is being negotiated with the lender.
+
+6. MANAGEMENT COMMENTARY
+
+Management acknowledges the difficult trading environment in FY 2024 and has
+initiated a strategic review exploring options including additional equity financing,
+a partial asset sale, or a strategic merger. The company is in early-stage
+discussions with two potential investors. No binding agreements have been reached.
+
+Going concern: The auditors have included an emphasis-of-matter paragraph in the
+audit report regarding going concern uncertainty, given the covenant breach, negative
+operating cash flow, and projected cash runway of less than 12 months without
+additional financing.
+
+7. AUDITOR'S NOTE
+
+These figures are extracted from the audited financial statements of DataFlow Inc.
+for the year ended 31 December 2024. The audit was conducted by BDO USA, LLP in
+accordance with US GAAP. An unqualified opinion was issued with an emphasis-of-matter
+paragraph relating to going concern uncertainty, dated 28 February 2025. Full audited
+accounts are available upon execution of a non-disclosure agreement.
+
+8. CONTACT
+
+Chief Financial Officer: cfo@dataflow.io
+DataFlow Inc., 535 Mission Street, 14th Floor, San Francisco, CA 94105, USA

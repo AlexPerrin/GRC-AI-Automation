@@ -1,0 +1,90 @@
+DATAFLOW INC. — VENDOR SECURITY QUESTIONNAIRE RESPONSE
+Prepared for: Procurement / GRC Review Team
+Date: December 2024
+
+1. COMPANY OVERVIEW
+
+DataFlow Inc. is a cloud-based data integration and ETL platform provider. Our
+platform enables enterprises to connect, transform, and move data across cloud and
+on-premises systems. We are headquartered in San Francisco, CA, and serve customers
+across North America, Europe, and Asia-Pacific. Our infrastructure is hosted
+primarily on AWS (us-west-2 primary, eu-west-1 for EU customers).
+
+2. SECURITY CERTIFICATIONS AND AUDITS
+
+DataFlow Inc. is certified under ISO/IEC 27001:2022 (certificate number:
+ISO27K-2024-88312, valid through June 2026). The certification scope covers the
+design, development, operation, and support of our cloud data integration platform.
+
+We do not currently hold a SOC 2 report. We are evaluating a SOC 2 Type II audit
+engagement with a target completion date in H2 2025.
+
+Regarding independent penetration testing: our most recent third-party penetration
+test was conducted in June 2023 by ClearPath Security Ltd. The assessment covered
+our web application and API surface. Remediation of findings was completed by
+September 2023. We have not commissioned a follow-up penetration test since that
+engagement. We plan to conduct our next assessment in 2025, pending budget approval.
+
+3. ACCESS CONTROL
+
+DataFlow enforces role-based access control for all customer environments. Employee
+access to production systems requires a hardware token (Yubikey) for privileged
+operations. Standard administrative access requires password authentication with
+optional MFA; MFA is not currently mandatory for all employee access to production
+systems. We are planning a company-wide MFA rollout scheduled for Q2 2025.
+
+Customer admin accounts support SAML 2.0 SSO. End-user MFA is available as an
+optional feature. We do not currently enforce MFA for customer accounts by default.
+
+Access to production databases is restricted to our SRE team. Access logs are
+retained for 6 months. Quarterly access reviews are conducted for privileged roles.
+
+4. DATA ENCRYPTION
+
+All customer data at rest is encrypted using AES-256. Data in transit is protected
+using TLS 1.2 or higher. We do not currently support TLS 1.3 for all endpoints;
+a migration is planned for H1 2025. Encryption keys are managed using AWS KMS with
+manual rotation on an 18-month cycle.
+
+5. INCIDENT RESPONSE
+
+DataFlow maintains an incident response policy that is reviewed annually. In the
+event of a confirmed security incident affecting customer data, our team will notify
+affected customers and work with them to assess impact. We do not publish a formal
+SLA for customer notification timelines; response times will depend on the scope and
+severity of the incident. Customers requiring a contractual notification SLA should
+raise this during contract negotiation.
+
+Our engineering team is on-call for critical production incidents. We do not
+operate a 24/7 dedicated security operations function; security alerts are triaged
+by our on-call engineering rotation outside business hours.
+
+6. VULNERABILITY MANAGEMENT
+
+We perform automated vulnerability scanning using OWASP ZAP integrated into our
+CI/CD pipeline. Internal vulnerability assessments are conducted bi-annually using
+Tenable.io. Critical CVEs are prioritised for remediation within 30 days of
+discovery. We do not have a published critical patch SLA.
+
+Software composition analysis (SCA) is performed using Dependabot for open-source
+dependencies. We monitor for known CVEs in our dependency tree but do not currently
+block builds on newly introduced vulnerabilities.
+
+7. BUSINESS CONTINUITY AND DISASTER RECOVERY
+
+DataFlow operates across two AWS Availability Zones. Our target RTO is 4 hours and
+our RPO is 1 hour. DR failover procedures are documented and tested annually via
+tabletop exercise. Automated daily backups are stored in a separate AWS region;
+restore testing is performed quarterly.
+
+8. SUPPLY CHAIN AND THIRD-PARTY RISK
+
+We maintain an internal list of critical third-party providers. Key sub-processors
+include AWS (infrastructure), Twilio SendGrid (email), and PagerDuty (alerting).
+We review supplier certifications at contract renewal. We do not currently have a
+formal third-party risk management programme with standardised assessment criteria.
+
+9. CONTACT
+
+Security enquiries: security@dataflow.io
+DataFlow Inc., 535 Mission Street, 14th Floor, San Francisco, CA 94105, USA

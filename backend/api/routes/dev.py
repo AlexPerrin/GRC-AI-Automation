@@ -3,16 +3,24 @@ Development / demo utilities — NOT for production use.
 
 POST /dev/seed
   Clears any existing vendor/document data and inserts three pre-defined
-  mock vendors with their documents already chunked and embedded into
-  ChromaDB.  Calling this endpoint multiple times is safe (idempotent
-  at the DB level — old rows are deleted before new ones are created).
+  mock vendors with THREE documents each (legal, security, financial),
+  fully chunked and embedded into ChromaDB.  Calling this endpoint
+  multiple times is safe (idempotent at the DB level — old rows are
+  deleted before new ones are created).
 
-Vendors seeded:
-  1. Acme Analytics Inc.   — clean GDPR/PIPEDA-compliant privacy policy
-  2. DataFlow Inc.         — privacy policy with legal gaps (no intl-transfer
-                             mechanism, no GDPR Art. 28 DPA language)
-  3. SecureVault Ltd.      — security questionnaire with IR SLA gap and no
-                             recent third-party penetration test evidence
+Vendors seeded (9 documents total, 3 per vendor):
+  1. Acme Analytics Inc.   — ✅ clean GDPR/PIPEDA privacy policy
+                             ✅ SOC 2 Type II, recent pentest
+                             ✅ healthy revenue growth, profitable
+  2. DataFlow Inc.         — ⚠️ privacy policy: no intl-transfer mechanism,
+                                no GDPR Art. 28 DPA language
+                             ⚠️ security: pentest >18 months ago, no IR SLA
+                             ⚠️ financial: declining revenue, high leverage,
+                                going-concern note
+  3. SecureVault Ltd.      — ⚠️ privacy policy: vague retention, no
+                                sub-processor DPA clause
+                             ❌ security questionnaire: no pentest, no IR SLA
+                             ✅ financial: stable SaaS revenue, moderate leverage
 """
 from pathlib import Path
 
@@ -39,39 +47,75 @@ _VENDORS = [
         "website": "https://acmeanalytics.io",
         "description": (
             "SaaS analytics vendor — strong GDPR/PIPEDA compliance, "
-            "SOC 2 Type II certified, clean security posture."
+            "SOC 2 Type II certified, healthy financials."
         ),
-        "document": {
-            "filename": "acme_analytics_privacy_policy.txt",
-            "stage": DocumentStage.LEGAL,
-            "doc_type": "privacy_policy",
-        },
+        "documents": [
+            {
+                "filename": "acme_analytics_privacy_policy.txt",
+                "stage": DocumentStage.LEGAL,
+                "doc_type": "privacy_policy",
+            },
+            {
+                "filename": "acme_analytics_security_questionnaire.txt",
+                "stage": DocumentStage.SECURITY,
+                "doc_type": "security_questionnaire",
+            },
+            {
+                "filename": "acme_analytics_financial_statement.txt",
+                "stage": DocumentStage.FINANCIAL,
+                "doc_type": "financial_statement",
+            },
+        ],
     },
     {
         "name": "DataFlow Inc.",
         "website": "https://dataflow.io",
         "description": (
-            "Cloud data-integration platform — privacy policy has gaps: "
-            "no international transfer mechanism, no GDPR Art. 28 DPA language."
+            "Cloud data-integration platform — privacy policy has gaps, "
+            "security posture below par, financial distress signals."
         ),
-        "document": {
-            "filename": "dataflow_privacy_policy.txt",
-            "stage": DocumentStage.LEGAL,
-            "doc_type": "privacy_policy",
-        },
+        "documents": [
+            {
+                "filename": "dataflow_privacy_policy.txt",
+                "stage": DocumentStage.LEGAL,
+                "doc_type": "privacy_policy",
+            },
+            {
+                "filename": "dataflow_security_questionnaire.txt",
+                "stage": DocumentStage.SECURITY,
+                "doc_type": "security_questionnaire",
+            },
+            {
+                "filename": "dataflow_financial_statement.txt",
+                "stage": DocumentStage.FINANCIAL,
+                "doc_type": "financial_statement",
+            },
+        ],
     },
     {
         "name": "SecureVault Ltd.",
         "website": "https://securevault.io",
         "description": (
             "UK document-management SaaS — ISO 27001 certified but no recent "
-            "penetration test and no formal IR notification SLA."
+            "penetration test; privacy policy has DPA gaps; stable financials."
         ),
-        "document": {
-            "filename": "securevault_security_questionnaire.txt",
-            "stage": DocumentStage.SECURITY,
-            "doc_type": "security_questionnaire",
-        },
+        "documents": [
+            {
+                "filename": "securevault_privacy_policy.txt",
+                "stage": DocumentStage.LEGAL,
+                "doc_type": "privacy_policy",
+            },
+            {
+                "filename": "securevault_security_questionnaire.txt",
+                "stage": DocumentStage.SECURITY,
+                "doc_type": "security_questionnaire",
+            },
+            {
+                "filename": "securevault_financial_statement.txt",
+                "stage": DocumentStage.FINANCIAL,
+                "doc_type": "financial_statement",
+            },
+        ],
     },
 ]
 
@@ -83,7 +127,7 @@ _VENDORS = [
 class SeededVendor(BaseModel):
     id: int
     name: str
-    document_id: int
+    document_ids: list[int]
     review_id: int
 
 
@@ -102,8 +146,9 @@ def seed_demo_data(db: Session = Depends(get_db)) -> SeedResponse:
     Reset and re-seed demo data.
 
     Deletes all existing Vendor rows (cascades to Documents, Reviews,
-    Decisions, and AuditLogs), then creates three mock vendors with one
-    document each, fully chunked and embedded into ChromaDB.
+    Decisions, and AuditLogs), then creates three mock vendors with three
+    documents each (legal, security, financial), fully chunked and embedded
+    into ChromaDB.
     """
     # 1. Wipe existing data so repeated calls start from a clean state.
     #    Delete leaf tables first to avoid FK constraint failures on bulk delete.
@@ -141,35 +186,36 @@ def seed_demo_data(db: Session = Depends(get_db)) -> SeedResponse:
         db.add(use_case_review)
         db.flush()
 
-        doc_spec = spec["document"]
-        mock_path = _MOCK_DIR / doc_spec["filename"]
-        raw_text = mock_path.read_text(encoding="utf-8")
+        # 4. Create one Document per stage, chunk + embed each into ChromaDB.
+        doc_ids: list[int] = []
+        for doc_spec in spec["documents"]:
+            mock_path = _MOCK_DIR / doc_spec["filename"]
+            raw_text = mock_path.read_text(encoding="utf-8")
 
-        # 4. Persist document record for the later AI stage (legal or security).
-        document = Document(
-            vendor_id=vendor.id,
-            stage=doc_spec["stage"],
-            doc_type=doc_spec["doc_type"],
-            filename=doc_spec["filename"],
-            raw_text=raw_text,
-        )
-        db.add(document)
-        db.flush()  # populate document.id
+            document = Document(
+                vendor_id=vendor.id,
+                stage=doc_spec["stage"],
+                doc_type=doc_spec["doc_type"],
+                filename=doc_spec["filename"],
+                raw_text=raw_text,
+            )
+            db.add(document)
+            db.flush()  # populate document.id
 
-        # 5. Chunk + embed into ChromaDB.
-        collection = f"vendor_{vendor.id}_{doc_spec['stage'].value}_{document.id}"
-        chunks = chunker.chunk(
-            raw_text,
-            {
-                "vendor_id": vendor.id,
-                "stage": doc_spec["stage"].value,
-                "doc_id": document.id,
-            },
-        )
-        store.upsert_chunks(collection, chunks)
-        document.chroma_collection_id = collection
+            collection = f"vendor_{vendor.id}_{doc_spec['stage'].value}_{document.id}"
+            chunks = chunker.chunk(
+                raw_text,
+                {
+                    "vendor_id": vendor.id,
+                    "stage": doc_spec["stage"].value,
+                    "doc_id": document.id,
+                },
+            )
+            store.upsert_chunks(collection, chunks)
+            document.chroma_collection_id = collection
+            doc_ids.append(document.id)
 
-        # 6. Create pending AI reviews for ALL three AI stages so every panel
+        # 5. Create pending AI reviews for ALL three AI stages so every panel
         #    always has a review record and can record decisions immediately.
         for stage in (DocumentStage.LEGAL, DocumentStage.SECURITY, DocumentStage.FINANCIAL):
             db.add(Review(
@@ -184,7 +230,7 @@ def seed_demo_data(db: Session = Depends(get_db)) -> SeedResponse:
             SeededVendor(
                 id=vendor.id,
                 name=vendor.name,
-                document_id=document.id,
+                document_ids=doc_ids,
                 review_id=use_case_review.id,
             )
         )

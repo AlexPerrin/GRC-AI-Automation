@@ -1,0 +1,90 @@
+ACME ANALYTICS INC. — VENDOR SECURITY QUESTIONNAIRE RESPONSE
+Prepared for: Procurement / GRC Review Team
+Date: January 2025
+
+1. COMPANY OVERVIEW
+
+Acme Analytics Inc. ("Acme") provides enterprise business intelligence and analytics
+services delivered as a cloud-hosted SaaS platform. Our infrastructure is hosted on
+AWS (ca-central-1 primary, us-east-1 DR) and Google Cloud Platform (europe-west1 for
+EU-resident customers). We serve over 400 enterprise customers across North America
+and the European Union.
+
+2. SECURITY CERTIFICATIONS AND AUDITS
+
+Acme holds a current SOC 2 Type II report covering the Security, Availability, and
+Confidentiality trust service criteria. The most recent audit period ran from
+1 October 2023 to 30 September 2024; the report was issued on 15 November 2024 and
+is available to prospective customers under NDA upon request.
+
+We engaged an independent CREST-accredited penetration testing firm (Cobalt Security
+Ltd.) to perform a full-scope external and internal penetration test in September 2024.
+The engagement covered our web application, API layer, and internal network perimeter.
+All critical and high findings were remediated prior to go-live; a remediation letter
+confirming closure is included in our SOC 2 report package.
+
+3. ACCESS CONTROL
+
+Access to all production systems requires multi-factor authentication (MFA) enforced
+via our identity provider (Okta). MFA cannot be bypassed or self-service disabled;
+exceptions require written approval from the CISO. We operate a least-privilege
+role-based access control (RBAC) model; access reviews are conducted quarterly.
+Privileged access to production databases is mediated through a PAM solution
+(CyberArk) with full session recording and audit trail.
+
+Customer-facing admin accounts support SSO via SAML 2.0 and OIDC. MFA is mandatory
+for all admin roles; end-user MFA is strongly recommended and enabled by default.
+
+4. DATA ENCRYPTION
+
+All data at rest is encrypted using AES-256. Data in transit is protected using
+TLS 1.3 (TLS 1.2 minimum; legacy ciphers disabled). Encryption keys are managed
+using AWS KMS with automatic annual rotation. Customer-managed key (CMK) options
+are available under our Enterprise tier.
+
+5. INCIDENT RESPONSE
+
+Acme maintains a formal Incident Response Plan (IRP), reviewed and tested annually
+via tabletop exercises. Our published SLA for customer notification of a confirmed
+security incident involving their data is 24 hours from internal confirmation. In
+the event of a personal data breach triggering GDPR Article 33 obligations, we
+commit to notifying affected Controllers within 72 hours of becoming aware of the
+breach, consistent with regulatory requirements.
+
+Our security operations centre (SOC) operates 24/7 with automated alerting via
+SIEM (Splunk Enterprise Security). Mean time to detect (MTTD) for critical incidents
+is tracked quarterly; current benchmark is under 15 minutes.
+
+6. VULNERABILITY MANAGEMENT
+
+Acme performs continuous automated vulnerability scanning of our production
+environment using Qualys. Critical CVEs are patched within 72 hours of vendor
+disclosure; high-severity CVEs within 14 days. Dependency scanning (SCA) is
+integrated into our CI/CD pipeline using Snyk; builds fail on newly introduced
+critical CVEs.
+
+Our application security programme includes mandatory SAST (Semgrep) on every pull
+request, DAST scanning against staging environments, and annual threat modelling
+workshops per service.
+
+7. BUSINESS CONTINUITY AND DISASTER RECOVERY
+
+Acme's platform is architected for high availability across multiple AWS Availability
+Zones. Our RTO target is 1 hour and RPO target is 15 minutes for our primary platform.
+Full DR failover is tested bi-annually. Backup integrity is verified via automated
+restore tests on a weekly basis. Customer data exports are available on-demand from
+the admin console.
+
+8. SUPPLY CHAIN AND THIRD-PARTY RISK
+
+All critical sub-processors are listed in our DPA Annex. We require SOC 2 Type II
+or ISO 27001 certification from Tier-1 suppliers and review certifications annually.
+We maintain a software composition analysis programme; open-source libraries are
+reviewed for licence compliance and known vulnerabilities prior to adoption.
+
+9. CONTACT
+
+Security enquiries: security@acmeanalytics.io
+Bug bounty programme: https://acmeanalytics.io/security/responsible-disclosure
+Data Protection Officer: dpo@acmeanalytics.io
+Acme Analytics Inc., 100 King Street West, Suite 5600, Toronto, ON M5X 1C9, Canada

@@ -1,0 +1,86 @@
+SECUREVAULT LTD. — PRIVACY AND DATA PROTECTION POLICY
+Effective Date: 1 June 2024 | Version 2.3
+
+1. INTRODUCTION
+
+SecureVault Ltd. ("SecureVault," "we," "us") is a UK-based provider of document
+management and digital vault services. This policy describes how we handle personal
+data that we process on behalf of our business customers in connection with our
+SaaS platform.
+
+2. DATA CONTROLLER / PROCESSOR RELATIONSHIP
+
+When providing our platform to enterprise customers, SecureVault acts as a data
+processor and our customers act as the data controllers. We process personal data
+solely in accordance with customer instructions for the purposes of delivering the
+contracted service.
+
+We enter into a data processing agreement with enterprise customers upon request.
+Customers should contact their account manager to arrange execution of a DPA.
+Our standard service agreement does not incorporate GDPR Article 28 compliant DPA
+language by default; a separate addendum must be requested and negotiated.
+
+3. DATA WE PROCESS
+
+On behalf of customers, we may process personal data contained within documents
+uploaded to our platform, including names, identification numbers, financial data,
+and other business records. The categories of data processed depend entirely on
+the content of documents stored by customers.
+
+4. INTERNATIONAL DATA TRANSFERS
+
+SecureVault's primary infrastructure is hosted on AWS within the UK and EU (eu-west-1,
+eu-central-1). Where data is processed outside the UK or EEA, we rely on standard
+contractual clauses or other appropriate transfer mechanisms as required by applicable
+law. Customers with specific data residency requirements should notify us at the
+time of contracting to ensure appropriate infrastructure configuration.
+
+5. DATA RETENTION
+
+SecureVault retains customer data for the duration of the contract. Following contract
+termination or expiry, customer data is deleted from our primary systems within a
+reasonable period. Customers may request deletion of specific documents at any time
+via the platform. Backup copies of data are retained for a period consistent with
+our operational backup schedule; the specific retention period for backup data varies
+and customers should contact us for further details.
+
+6. SUB-PROCESSORS
+
+SecureVault uses third-party service providers to support the delivery of our
+platform. Our current sub-processors include infrastructure and hosting providers,
+email delivery services, and operational monitoring tools. A list of our key
+sub-processors is available upon written request to privacy@securevault.io. We
+reserve the right to engage new sub-processors in the ordinary course of business;
+customers who wish to be notified of changes to our sub-processor list should
+subscribe to our notification service.
+
+7. SECURITY MEASURES
+
+We implement technical and organisational measures appropriate to the nature of
+the data processed on our platform, including encryption at rest and in transit,
+access controls, and incident response procedures. Further detail on our security
+measures is available in our Vendor Security Questionnaire, which can be requested
+from our sales team.
+
+8. DATA SUBJECT RIGHTS
+
+Where we receive data subject requests directly from individuals, we will forward
+these to the relevant customer controller. SecureVault will cooperate with controllers
+in fulfilling their obligations to data subjects under applicable data protection law.
+
+9. BREACH NOTIFICATION
+
+In the event of a confirmed personal data breach, SecureVault will notify the
+relevant customer without undue delay. Our security team will investigate the incident
+and provide affected customers with information necessary for them to fulfil their
+regulatory notification obligations.
+
+10. GOVERNING LAW
+
+This policy is governed by the laws of England and Wales.
+
+11. CONTACT
+
+For data protection enquiries: privacy@securevault.io
+Data Protection Officer: dpo@securevault.io
+SecureVault Ltd., 12 Finsbury Square, London EC2A 1AR, United Kingdom
