@@ -4,14 +4,14 @@ const statusColors: Record<VendorStatus, string> = {
   INTAKE: 'bg-gray-100 text-gray-700',
   USE_CASE_REVIEW: 'bg-yellow-100 text-yellow-800',
   USE_CASE_APPROVED: 'bg-green-100 text-green-800',
-  LEGAL_REVIEW: 'bg-yellow-100 text-yellow-800',
+  LEGAL_REVIEW: 'bg-blue-100 text-blue-800',
   LEGAL_APPROVED: 'bg-green-100 text-green-800',
   NDA_PENDING: 'bg-blue-100 text-blue-800',
   SECURITY_REVIEW: 'bg-yellow-100 text-yellow-800',
   SECURITY_APPROVED: 'bg-green-100 text-green-800',
   FINANCIAL_REVIEW: 'bg-yellow-100 text-yellow-800',
   FINANCIAL_APPROVED: 'bg-green-100 text-green-800',
-  ONBOARDED: 'bg-blue-600 text-white',
+  ONBOARDED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
 }
 
@@ -34,7 +34,7 @@ const variantColors: Record<string, string> = {
   // Uppercase variants
   MET: 'bg-green-100 text-green-800',
   APPROVE: 'bg-green-100 text-green-800',
-  ONBOARDED: 'bg-blue-600 text-white',
+  ONBOARDED: 'bg-green-100 text-green-800',
   APPROVED: 'bg-green-100 text-green-800',
   ACCEPTABLE: 'bg-green-100 text-green-800',
   PROCEED: 'bg-green-100 text-green-800',

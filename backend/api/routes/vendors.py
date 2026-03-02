@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.models import DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
+from core.models import Decision, DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
+from schemas.decision import DecisionRead
 from schemas.review import ReviewRead
 from schemas.vendor import VendorCreate, VendorList, VendorRead
 from services.workflow import WorkflowService
@@ -148,13 +150,28 @@ def start_security_review(vendor_id: int, db: Session = Depends(get_db)):
     return review
 
 
+@router.get("/{vendor_id}/decisions", response_model=list[DecisionRead])
+def list_vendor_decisions(vendor_id: int, db: Session = Depends(get_db)):
+    """Return all decisions recorded against any review belonging to this vendor."""
+    review_ids = [
+        r.id for r in db.query(Review.id).filter(Review.vendor_id == vendor_id).all()
+    ]
+    if not review_ids:
+        return []
+    return db.query(Decision).filter(Decision.review_id.in_(review_ids)).all()
+
+
+class RejectPayload(BaseModel):
+    rationale: str
+
+
 @router.post("/{vendor_id}/reject", response_model=VendorRead)
-def reject_vendor(vendor_id: int, rationale: str, db: Session = Depends(get_db)):
+def reject_vendor(vendor_id: int, payload: RejectPayload, db: Session = Depends(get_db)):
     """Reject a vendor at any stage."""
     vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
     try:
-        return WorkflowService(db).reject_vendor(vendor_id, stage="MANUAL", rationale=rationale)
+        return WorkflowService(db).reject_vendor(vendor_id, stage="MANUAL", rationale=payload.rationale)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

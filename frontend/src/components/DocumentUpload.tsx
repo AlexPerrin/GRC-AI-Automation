@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ChangeEvent } from 'react'
+import { useRef } from 'react'
 import { uploadDocument } from '../api/client'
 import type { Document, DocumentStage } from '../types'
 import Spinner from './ui/Spinner'
@@ -18,6 +19,7 @@ export default function DocumentUpload({
   documents,
 }: DocumentUploadProps) {
   const queryClient = useQueryClient()
+  const inputRef = useRef<HTMLInputElement>(null)
   const mutation = useMutation({
     mutationFn: (file: File) => uploadDocument(vendorId, stage, docType, file),
     onSuccess: () => {
@@ -35,15 +37,24 @@ export default function DocumentUpload({
 
   return (
     <div className="space-y-3">
-      <label className="block">
+      <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-gray-700">Upload document</span>
         <input
+          ref={inputRef}
           type="file"
           onChange={handleChange}
           disabled={mutation.isPending}
-          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="sr-only"
         />
-      </label>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={mutation.isPending}
+          className="rounded-md bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+        >
+          Choose File
+        </button>
+      </div>
       {mutation.isPending && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Spinner className="h-4 w-4" />

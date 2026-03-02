@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { completeOnboarding, confirmNda, getVendor, listDocuments, listReviews, rejectVendor } from '../api/client'
+import { completeOnboarding, confirmNda, getVendor, listDocuments, listReviews, listVendorDecisions, rejectVendor } from '../api/client'
 import AuditTrail from '../components/AuditTrail'
 import StatusStepper, { type StageTab } from '../components/StatusStepper'
 import Badge from '../components/ui/Badge'
@@ -11,7 +11,7 @@ import FinancialPanel from '../stages/FinancialPanel'
 import LegalReviewPanel from '../stages/LegalReviewPanel'
 import SecurityReviewPanel from '../stages/SecurityReviewPanel'
 import UseCasePanel from '../stages/UseCasePanel'
-import type { DocumentStage, Review, Vendor } from '../types'
+import type { Decision, DocumentStage, Review, Vendor } from '../types'
 
 // ── NDA Panel ─────────────────────────────────────────────────────────────────
 
@@ -88,26 +88,26 @@ const riskToScore: Record<string, string> = { low: '2/10', medium: '5/10', high:
 
 function reviewSummary(review: Review | undefined) {
   if (!review || review.status !== 'COMPLETE') return null
-  if (review.review_type === 'HUMAN_FORM' && review.form_input) {
-    const fi = review.form_input as Record<string, unknown>
-    return { recommendation: String(fi.recommendation ?? '—'), riskScore: null, riskRating: null, summary: null }
-  }
   if (review.ai_output) {
     const o = review.ai_output as unknown as Record<string, unknown>
     const overallRisk = o.overall_risk ? String(o.overall_risk) : null
     const overallScore = o.overall_risk_score != null ? (o.overall_risk_score as number) : null
     return {
-      recommendation: String(o.recommendation ?? '—'),
       riskScore: overallRisk
         ? (riskToScore[overallRisk] ?? null)
         : overallScore != null
           ? `${overallScore.toFixed(1)}/10`
           : null,
       riskRating: overallRisk ?? (overallScore != null ? riskRatingFromScore(overallScore) : null),
-      summary: o.summary ? String(o.summary) : null,
     }
   }
   return null
+}
+
+const decisionLabel: Record<string, string> = {
+  APPROVE: 'Approved',
+  APPROVE_WITH_CONDITIONS: 'Approved with Conditions',
+  REJECT: 'Rejected',
 }
 
 const statusLabel: Record<string, string> = {
@@ -128,20 +128,25 @@ function OnboardingDecisionPanel({
   const [rationale, setRationale] = useState('')
   const [showReject, setShowReject] = useState(false)
 
+  const { data: decisions } = useQuery({
+    queryKey: ['vendor-decisions', String(vendor.id)],
+    queryFn: () => listVendorDecisions(vendor.id),
+  })
+
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
+    void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
+    void queryClient.invalidateQueries({ queryKey: ['vendor-decisions', String(vendor.id)] })
+  }
+
   const approveMutation = useMutation({
     mutationFn: () => completeOnboarding(vendor.id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
-      void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
-    },
+    onSuccess: invalidateAll,
   })
 
   const rejectMutation = useMutation({
     mutationFn: () => rejectVendor(vendor.id, rationale),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['vendor', String(vendor.id)] })
-      void queryClient.invalidateQueries({ queryKey: ['audit-logs', String(vendor.id)] })
-    },
+    onSuccess: invalidateAll,
   })
 
   const isOnboarded = vendor.status === 'ONBOARDED'
@@ -173,44 +178,93 @@ function OnboardingDecisionPanel({
         <h3 className="text-base font-semibold text-gray-900 mb-3">Review Summaries</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {REVIEW_STAGES.map(({ label, stage }) => {
-            const review = reviews?.find(r => r.stage === stage)
-            const meta   = reviewSummary(review)
+            const review   = reviews?.find(r => r.stage === stage)
+            const decision = decisions?.find((d: Decision) => d.review_id === review?.id)
+            const meta     = reviewSummary(review)
+            const ucForm   = stage === 'USE_CASE' && review?.form_input
+              ? review.form_input as Record<string, unknown>
+              : null
+
+            const statusText  = decision ? (decisionLabel[decision.action] ?? decision.action) : (review ? statusLabel[review.status] ?? review.status : 'Not started')
+            const statusColor = decision?.action === 'APPROVE'
+              ? 'bg-green-100 text-green-700'
+              : decision?.action === 'APPROVE_WITH_CONDITIONS'
+                ? 'bg-yellow-100 text-yellow-700'
+                : decision?.action === 'REJECT'
+                  ? 'bg-red-100 text-red-700'
+                  : review?.status === 'COMPLETE'
+                    ? 'bg-gray-200 text-gray-500'
+                    : review?.status === 'ERROR'
+                      ? 'bg-red-100 text-red-700'
+                      : review?.status === 'IN_PROGRESS'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-200 text-gray-500'
+
             return (
               <div key={stage} className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3 space-y-1">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium text-gray-800">{label}</span>
-                  <span className={[
-                    'text-xs font-medium px-2 py-0.5 rounded-full',
-                    review?.status === 'COMPLETE'
-                      ? 'bg-green-100 text-green-700'
-                      : review?.status === 'ERROR'
-                        ? 'bg-red-100 text-red-700'
-                        : review?.status === 'IN_PROGRESS'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-200 text-gray-500',
-                  ].join(' ')}>
-                    {review ? statusLabel[review.status] ?? review.status : 'Not started'}
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${statusColor}`}>
+                    {statusText}
                   </span>
                 </div>
-                {meta && (
-                  <div className="space-y-2 mt-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {meta.riskScore && (
-                        <span className="text-xs text-gray-500">
-                          Risk Score <span className="font-bold text-gray-900">{meta.riskScore}</span>
-                        </span>
-                      )}
-                      {meta.riskRating && (
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          Risk Rating <Badge label={meta.riskRating} />
-                        </span>
-                      )}
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        Recommendation <Badge label={meta.recommendation} />
+                {(meta?.riskScore || meta?.riskRating) && (
+                  <div className="flex items-center gap-3 flex-wrap mt-1">
+                    {meta?.riskScore && (
+                      <span className="text-xs text-gray-500">
+                        Risk Score: <span className="font-bold text-gray-900">{meta.riskScore}</span>
                       </span>
-                    </div>
-                    {meta.summary && (
-                      <p className="text-xs text-gray-500">{meta.summary}</p>
+                    )}
+                    {meta?.riskRating && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        Risk Rating: <Badge label={meta.riskRating} />
+                      </span>
+                    )}
+                  </div>
+                )}
+                {ucForm && (
+                  <div className="mt-2 space-y-1">
+                    {!!ucForm.reviewer_name && (
+                      <p className="text-xs text-gray-500">
+                        Approver: <span className="font-bold text-gray-900">{String(ucForm.reviewer_name)}</span>
+                      </p>
+                    )}
+                    {Array.isArray(ucForm.data_types_involved) && ucForm.data_types_involved.length > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-500">Data Types:</p>
+                        <ul className="mt-0.5 space-y-0.5 list-disc list-inside">
+                          {(ucForm.data_types_involved as string[]).map((t, i) => (
+                            <li key={i} className="text-xs font-bold text-gray-900">{t}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {!!ucForm.notes && (
+                      <p className="text-xs text-gray-500">
+                        Notes: <span className="font-bold text-gray-900">{String(ucForm.notes)}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+                {decision && (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-gray-500">
+                      Approver: <span className="font-bold text-gray-900">{decision.actor}</span>
+                    </p>
+                    {decision.rationale && (
+                      <p className="text-xs text-gray-500">
+                        Rationale: <span className="font-bold text-gray-900">{decision.rationale}</span>
+                      </p>
+                    )}
+                    {decision.conditions && decision.conditions.length > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-500">Conditions:</p>
+                        <ul className="mt-0.5 space-y-0.5 list-disc list-inside">
+                          {decision.conditions.map((c, i) => (
+                            <li key={i} className="text-xs font-bold text-gray-900">{c}</li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 )}

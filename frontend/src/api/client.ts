@@ -58,6 +58,8 @@ export const submitForm = (reviewId: number, body: unknown) =>
   request<Review>(`/reviews/${reviewId}/submit-form`, json('POST', body))
 
 // Decisions
+export const listVendorDecisions = (vendorId: number | string) =>
+  request<Decision[]>(`/vendors/${vendorId}/decisions`)
 export const createDecision = (
   reviewId: number,
   data: { actor: string; action: DecisionAction; rationale: string; conditions?: string[] },
