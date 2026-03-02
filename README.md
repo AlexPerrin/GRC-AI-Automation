@@ -22,6 +22,20 @@ docker compose up --build
 | Swagger UI | `http://localhost:8000/docs` |
 | ChromaDB | `http://localhost:8001` |
 
+## Workflow
+
+Each vendor progresses through four independent review stages. Stages can be completed in any order — there are no hard status gates preventing decisions. A per-step progress indicator tracks completion based on actual decision records rather than vendor status.
+
+| Stage | Type | Completion trigger |
+|---|---|---|
+| 1. Use Case | Human form | Form submitted with PROCEED recommendation |
+| 2. NDA | Gate | `confirm-nda` endpoint called |
+| 3. Legal | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
+| 4. Security | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
+| 5. Financial | AI + human decision | APPROVE or APPROVE_WITH_CONDITIONS decision recorded |
+
+All four reviews (Legal, Security, Financial, Use Case) are pre-created at intake so decisions can be recorded immediately without triggering AI analysis first.
+
 ## Testing
 
 Tests use an isolated in-memory SQLite database and mocked service boundaries — no external services (ChromaDB, LLM API) required.
@@ -41,9 +55,9 @@ cd backend
 | `test_config.py` | 6 | `llm_model_string` for all providers, `chroma_use_server` toggle |
 | `test_models.py` | 11 | ORM creation, FK relationships, cascade deletes, enum completeness |
 | `test_schemas.py` | 17 | Pydantic validation — valid payloads, rejected values, required fields |
-| `test_api_vendors.py` | 17 | Vendor CRUD, pagination, 404s, stub endpoints, health check |
+| `test_api_vendors.py` | 17 | Vendor CRUD, pagination, 404s, NDA confirmation, reject, health check |
 | `test_api_documents.py` | 10 | Upload 201, raw_text persistence, chroma_collection_id, 404s, list, get |
-| `test_api_reviews.py` | 10 | List/get reviews, trigger AI analysis, 404s |
+| `test_api_reviews.py` | 10 | List/get reviews, trigger AI analysis (legal + security), 404s |
 | `test_api_workflow.py` | 21 | Intake, form submission, decisions, financial review, onboarding, reject |
 | `test_llm_client.py` | 7 | JSON parsing, markdown fence stripping, invalid JSON error |
 | `test_extractor.py` | 6 | PDF/DOCX/TXT extraction, None page text, non-UTF-8 bytes |
@@ -56,9 +70,9 @@ cd backend
 | `test_security_analyzer.py` | 10 | Return type, domain/gap structure, edge cases, call counts |
 | `test_workflow_intake.py` | 17 | create_vendor_and_intake, submit use case form, start financial review |
 | `test_workflow_legal.py` | 7 | Trigger legal review success/error, audit log events |
-| `test_workflow_security.py` | 11 | Confirm NDA, NDA gate, trigger security review success/error |
-| `test_workflow_decisions.py` | 26 | Legal/security/financial decisions, onboarding, reject, state transitions |
-| **Total** | **215** | |
+| `test_workflow_security.py` | 11 | Confirm NDA (sets flag, no status gate), trigger security review success/error |
+| `test_workflow_decisions.py` | 25 | Legal/security/financial decisions, financial form, onboarding, reject |
+| **Total** | **214** | |
 
 ## Environment Variables
 
@@ -109,9 +123,9 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 | `GET` | `/vendors/` | List all vendors (paginated) |
 | `GET` | `/vendors/{id}` | Get vendor by ID |
 | `POST` | `/vendors/{id}/start-intake` | Open Stage 1 Use Case review |
-| `POST` | `/vendors/{id}/confirm-nda` | Confirm NDA — advances LEGAL_APPROVED → SECURITY_REVIEW |
-| `POST` | `/vendors/{id}/start-financial-review` | Open Stage 4 Financial review |
-| `POST` | `/vendors/{id}/complete-onboarding` | Finalise onboarding |
+| `POST` | `/vendors/{id}/confirm-nda` | Set `nda_confirmed = true` (no status gate) |
+| `POST` | `/vendors/{id}/start-financial-review` | Return or create Financial review record |
+| `POST` | `/vendors/{id}/complete-onboarding` | Set vendor status to ONBOARDED |
 | `POST` | `/vendors/{id}/reject` | Reject vendor from any stage |
 
 ### Documents
@@ -128,8 +142,8 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 |---|---|---|
 | `GET` | `/vendors/{id}/reviews` | List all reviews for a vendor |
 | `GET` | `/reviews/{id}` | Get review by ID |
-| `POST` | `/reviews/{id}/trigger` | Trigger AI analysis (Stages 2 and 3) |
-| `POST` | `/reviews/{id}/submit-form` | Submit human form (Stage 1 / Stage 4) |
+| `POST` | `/reviews/{id}/trigger` | Trigger AI analysis (Legal or Security stage) |
+| `POST` | `/reviews/{id}/submit-form` | Submit human form (Use Case or Financial stage) |
 
 ### Decisions
 
@@ -137,6 +151,7 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 |---|---|---|
 | `POST` | `/reviews/{id}/decisions` | Record APPROVE / REJECT / APPROVE_WITH_CONDITIONS |
 | `GET` | `/reviews/{id}/decisions` | List decisions for a review |
+| `GET` | `/vendors/{id}/decisions` | List all decisions across all reviews for a vendor |
 
 ### Audit
 
@@ -156,7 +171,7 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 .
 ├── backend/
 │   ├── main.py                          # FastAPI app + CORS + lifespan handler
-│   ├── gunicorn.conf.py                 # Gunicorn configuration
+│   ├── gunicorn.conf.py                 # Gunicorn config — imports models before create_all
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── tests/
@@ -169,7 +184,7 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 │   ├── core/
 │   │   ├── config.py                    # Pydantic settings
 │   │   ├── database.py                  # SQLAlchemy engine + session
-│   │   └── models.py                    # ORM models + enums
+│   │   └── models.py                    # ORM models + enums (nda_confirmed on Vendor)
 │   ├── schemas/
 │   │   ├── vendor.py
 │   │   ├── document.py
@@ -207,19 +222,20 @@ Full interactive docs at `/docs` (Swagger UI) or `/redoc`.
 │       ├── types/index.ts               # TS interfaces mirroring backend schemas
 │       ├── components/
 │       │   ├── ui/                      # Badge, Button, Card, Spinner
-│       │   ├── StatusStepper.tsx        # 6-step progress bar
+│       │   ├── StatusStepper.tsx        # Per-step completion (independent of vendor status)
 │       │   ├── DocumentUpload.tsx
-│       │   ├── DecisionPanel.tsx
+│       │   ├── DecisionPanel.tsx        # Shows approve/reject form or existing decision banner
 │       │   ├── AuditTrail.tsx
 │       │   └── ErrorBoundary.tsx
 │       ├── pages/
 │       │   ├── VendorListPage.tsx
-│       │   └── VendorDetailPage.tsx
+│       │   └── VendorDetailPage.tsx     # Tabs, stepper, per-stage summary cards
 │       └── stages/
+│           ├── ReviewPanel.tsx          # Generic AI review panel (documents, analysis, decisions)
 │           ├── UseCasePanel.tsx         # Stage 1 — human form
 │           ├── LegalReviewPanel.tsx     # Stage 2 — AI report + decisions
-│           ├── SecurityReviewPanel.tsx  # Stage 3 — AI report + NDA gate
-│           └── FinancialPanel.tsx       # Stage 4 — human form
-├── compose.yaml
+│           ├── SecurityReviewPanel.tsx  # Stage 3 — AI report + decisions
+│           └── FinancialPanel.tsx       # Stage 4 — AI/human form + decisions
+├── docker-compose.yml
 └── .env.example
 ```
