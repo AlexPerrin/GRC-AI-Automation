@@ -10,7 +10,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from core.models import AuditLog, DocumentStage, Review, ReviewStatus, ReviewType, Vendor, VendorStatus
-from schemas.forms import UseCaseFormInput
+from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
 from services.financial.analyzer import FinancialAnalyzer
 from services.legal.analyzer import LegalAnalyzer
 from services.llm.client import LLMClient
@@ -151,6 +151,28 @@ class WorkflowService:
             )
         db.commit()
 
+        db.refresh(review)
+        return review
+
+    def submit_financial_form(self, review_id: int, form: FinancialRiskFormInput) -> Review:
+        """Validate and store Stage 4 financial form; mark review COMPLETE."""
+        db = self.db
+
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise ValueError(f"Review {review_id} not found")
+
+        review.form_input = form.model_dump()
+        review.status = ReviewStatus.COMPLETE
+        review.completed_at = datetime.utcnow()
+
+        self._log(
+            vendor_id=review.vendor_id,
+            event_type="FINANCIAL_FORM_SUBMITTED",
+            actor=form.reviewer_name,
+            payload={"review_id": review_id, "recommendation": form.recommendation},
+        )
+        db.commit()
         db.refresh(review)
         return review
 

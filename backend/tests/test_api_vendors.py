@@ -96,17 +96,18 @@ class TestHealthEndpoint:
 
 
 class TestVendorNdaAndStubEndpoints:
-    def test_confirm_nda_requires_legal_approved_status(self, client):
+    def test_confirm_nda_works_from_any_status(self, client):
         vendor = client.post("/vendors/", json={"name": "NDA Vendor"}).json()
+        # NDA can be confirmed from any status — no gate
         resp = client.post(f"/vendors/{vendor['id']}/confirm-nda")
-        # Vendor is INTAKE, not LEGAL_APPROVED — expects 400
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["nda_confirmed"] is True
 
     def test_confirm_nda_vendor_not_found(self, client):
         resp = client.post("/vendors/99999/confirm-nda")
         assert resp.status_code == 404
 
-    def test_confirm_nda_success_advances_to_security_review(self, client, db_session):
+    def test_confirm_nda_sets_nda_confirmed_flag(self, client, db_session):
         from core.models import Vendor, VendorStatus
         v = Vendor(name="NDA Success Vendor", status=VendorStatus.LEGAL_APPROVED)
         db_session.add(v)
@@ -115,7 +116,9 @@ class TestVendorNdaAndStubEndpoints:
 
         resp = client.post(f"/vendors/{v.id}/confirm-nda")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "SECURITY_REVIEW"
+        # Status unchanged; only nda_confirmed is set
+        assert resp.json()["status"] == "LEGAL_APPROVED"
+        assert resp.json()["nda_confirmed"] is True
 
     def test_complete_onboarding_advances_to_onboarded(self, client, db_session):
         from core.models import Vendor, VendorStatus
@@ -132,7 +135,7 @@ class TestVendorNdaAndStubEndpoints:
         vendor = client.post("/vendors/", json={"name": "Reject Vendor"}).json()
         resp = client.post(
             f"/vendors/{vendor['id']}/reject",
-            params={"rationale": "Not a fit"},
+            json={"rationale": "Not a fit"},
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "REJECTED"

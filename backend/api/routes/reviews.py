@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.models import DocumentStage, Review, ReviewType, Vendor
-from schemas.forms import UseCaseFormInput
+from schemas.forms import FinancialRiskFormInput, UseCaseFormInput
 from schemas.review import ReviewRead
 from services.workflow import WorkflowService
 
@@ -80,6 +80,9 @@ def submit_review_form(
         if review.stage == DocumentStage.USE_CASE:
             form = UseCaseFormInput(**body)
             return svc.submit_use_case_form(review_id, form)
+        elif review.stage == DocumentStage.FINANCIAL:
+            form = FinancialRiskFormInput(**body)
+            return svc.submit_financial_form(review_id, form)
         else:
             raise HTTPException(
                 status_code=400,

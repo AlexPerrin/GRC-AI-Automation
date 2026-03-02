@@ -135,16 +135,17 @@ class TestSubmitForm:
 # ---------------------------------------------------------------------------
 
 class TestStartFinancialReview:
-    def test_security_approved_vendor_advances_to_financial_review(self, client, db_session):
+    def test_returns_review_for_vendor(self, client, db_session):
+        # start-financial-review returns the review regardless of vendor status
         v = _seed_vendor(db_session, status=VendorStatus.SECURITY_APPROVED)
         resp = client.post(f"/vendors/{v.id}/start-financial-review")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "FINANCIAL_REVIEW"
+        assert resp.json()["stage"] == "FINANCIAL"
 
-    def test_wrong_status_returns_400(self, client, db_session):
+    def test_any_status_returns_200(self, client, db_session):
         v = _seed_vendor(db_session, status=VendorStatus.LEGAL_APPROVED)
         resp = client.post(f"/vendors/{v.id}/start-financial-review")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
     def test_not_found_returns_404(self, client):
         resp = client.post("/vendors/99999/start-financial-review")
@@ -162,10 +163,12 @@ class TestCompleteOnboarding:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ONBOARDED"
 
-    def test_wrong_status_returns_400(self, client, db_session):
+    def test_any_status_can_complete_onboarding(self, client, db_session):
+        # No status gate — any vendor not already ONBOARDED/REJECTED can be onboarded
         v = _seed_vendor(db_session, status=VendorStatus.SECURITY_APPROVED)
         resp = client.post(f"/vendors/{v.id}/complete-onboarding")
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ONBOARDED"
 
     def test_not_found_returns_404(self, client):
         resp = client.post("/vendors/99999/complete-onboarding")
@@ -179,12 +182,12 @@ class TestCompleteOnboarding:
 class TestRejectVendor:
     def test_any_vendor_can_be_rejected(self, client, db_session):
         v = _seed_vendor(db_session, status=VendorStatus.LEGAL_REVIEW)
-        resp = client.post(f"/vendors/{v.id}/reject", params={"rationale": "Not a fit"})
+        resp = client.post(f"/vendors/{v.id}/reject", json={"rationale": "Not a fit"})
         assert resp.status_code == 200
         assert resp.json()["status"] == "REJECTED"
 
     def test_not_found_returns_404(self, client):
-        resp = client.post("/vendors/99999/reject", params={"rationale": "Gone"})
+        resp = client.post("/vendors/99999/reject", json={"rationale": "Gone"})
         assert resp.status_code == 404
 
 
@@ -218,14 +221,15 @@ class TestDecisionWithStateTransition:
         vendor_resp = client.get(f"/vendors/{v.id}")
         assert vendor_resp.json()["status"] == "SECURITY_APPROVED"
 
-    def test_decision_on_pending_review_returns_400(self, client, db_session):
+    def test_decision_on_pending_review_succeeds(self, client, db_session):
+        # No COMPLETE gate — decisions can be recorded on reviews in any status
         v = _seed_vendor(db_session, status=VendorStatus.LEGAL_REVIEW)
         r = _seed_review(
             db_session, v.id, DocumentStage.LEGAL,
             review_type=ReviewType.AI_ANALYSIS, status=ReviewStatus.PENDING,
         )
         resp = client.post(f"/reviews/{r.id}/decisions", json=self._approve_payload())
-        assert resp.status_code == 400
+        assert resp.status_code == 201
 
     def test_decision_on_nonexistent_review_returns_404(self, client):
         resp = client.post("/reviews/99999/decisions", json=self._approve_payload())

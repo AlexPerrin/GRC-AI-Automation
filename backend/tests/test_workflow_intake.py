@@ -165,14 +165,16 @@ class TestSubmitUseCaseForm:
 # ---------------------------------------------------------------------------
 
 class TestStartFinancialReview:
-    def test_creates_financial_review_and_advances_vendor(self, db_session):
+    def test_creates_financial_review(self, db_session):
+        # start_financial_review returns the Review only; vendor status unchanged
         v = _make_vendor(db_session, status=VendorStatus.SECURITY_APPROVED)
         svc = WorkflowService(db_session)
-        vendor, review = svc.start_financial_review(v.id)
-        assert vendor.status == VendorStatus.FINANCIAL_REVIEW
+        review = svc.start_financial_review(v.id)
         assert review.stage == DocumentStage.FINANCIAL
-        assert review.review_type == ReviewType.HUMAN_FORM
+        assert review.review_type == ReviewType.AI_ANALYSIS
         assert review.status == ReviewStatus.PENDING
+        db_session.refresh(v)
+        assert v.status == VendorStatus.SECURITY_APPROVED  # unchanged
 
     def test_audit_log_financial_review_started(self, db_session):
         v = _make_vendor(db_session, status=VendorStatus.SECURITY_APPROVED)
@@ -185,11 +187,12 @@ class TestStartFinancialReview:
         assert log is not None
         assert log.actor == "system"
 
-    def test_raises_if_vendor_not_security_approved(self, db_session):
+    def test_any_status_can_start_financial_review(self, db_session):
+        # No status gate — financial review can be started from any status
         v = _make_vendor(db_session, status=VendorStatus.LEGAL_APPROVED)
         svc = WorkflowService(db_session)
-        with pytest.raises(ValueError, match="SECURITY_APPROVED"):
-            svc.start_financial_review(v.id)
+        review = svc.start_financial_review(v.id)
+        assert review.stage == DocumentStage.FINANCIAL
 
     def test_raises_if_vendor_not_found(self, db_session):
         svc = WorkflowService(db_session)
