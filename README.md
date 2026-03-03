@@ -47,12 +47,7 @@ I've also explored personal projects in machine learning, such as a security int
 ```bash
 git clone git@github.com:AlexPerrin/GRC-AI-Automation.git
 cd GRC-AI-Automation
-```
-
-Open `.env` and set `LLM_PROVIDER_API_KEY` to your Anthropic, OpenAI, or OpenRouter API key.<br>
-The `LLM_PROVIDER` and `LLM_MODEL` variables have working defaults (`anthropic` / `claude-sonnet-4-6`).
-
-```
+cp .env.example .env        # fill in LLM_PROVIDER_API_KEY
 docker compose up --build
 ```
 
