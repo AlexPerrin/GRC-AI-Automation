@@ -59,6 +59,33 @@ Optionally, seed three pre-built vendor scenarios (clean pass, legal rejection, 
 curl -X POST http://localhost:8000/dev/seed
 ```
 
+## Exploring RAG Data
+
+`backend/demo/explore_rag.py` lets you inspect the ChromaDB vector store — list collections, dump chunks, and run semantic queries — without touching the app UI.
+
+It connects to the ChromaDB container over the internal Docker network, so run it via `docker exec` inside the API container:
+
+```bash
+# List all collections and chunk counts
+docker exec -it grc-ai-automation-api-1 python3 /app/demo/explore_rag.py
+
+# Dump every chunk in a collection
+docker exec -it grc-ai-automation-api-1 python3 /app/demo/explore_rag.py -c vendor_1_LEGAL_1
+
+# Semantic query against a collection
+docker exec -it grc-ai-automation-api-1 python3 /app/demo/explore_rag.py \
+  -c vendor_1_LEGAL_1 -q "GDPR data transfer"
+
+# Run 6 preset compliance queries across every collection
+docker exec -it grc-ai-automation-api-1 python3 /app/demo/explore_rag.py --all-queries
+```
+
+Collection names follow the pattern `vendor_{id}_{STAGE}_{doc_id}` (e.g. `vendor_1_LEGAL_1`) and `kb_legal` / `kb_security` for the internal knowledge base. Seed the demo data first if collections are empty:
+
+```bash
+curl -X POST http://localhost:8000/dev/seed
+```
+
 ## Documentation
 
 [Wiki → Problem Definition](../../wiki/Problem-Definition)
